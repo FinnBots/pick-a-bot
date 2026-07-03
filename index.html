@@ -386,7 +386,7 @@
   // These three things are locked together on purpose — there is no way to get "skip the
   // holder check" without also getting "fake money only." Before this game goes live to
   // real holders, this MUST be set back to false.
-  var TEST_MODE = true;
+  var TEST_MODE = false;
 
   var CFG = TEST_MODE ? {
     NETWORK: 'local-test-validator',
