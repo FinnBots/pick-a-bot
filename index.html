@@ -272,6 +272,8 @@
     padding-top:14px; border-top:1px solid var(--line);
   }
   .upsell b{ color:var(--ink); font-weight:600; }
+  .upsell a{ color:var(--electric); font-weight:600; text-decoration:none; display:inline-block; margin-top:4px; }
+  .upsell a:hover{ text-decoration:underline; }
 
   /* ---------- How this works: modal, opened from the info button ---------- */
   #howtoModal:not(.hidden){
@@ -309,7 +311,7 @@
     <div class="test-banner hidden" id="testBanner"><b>🧪 TEST MODE</b>Fake $OIL, local validator, no real funds</div>
 
     <header class="topbar">
-      <span class="eyebrow">FINNBOTS</span>
+      <span class="eyebrow">FINNBOTS · SOLANA</span>
       <h1>Pick-a-Bot</h1>
       <button class="infobtn" id="infoBtn" type="button" aria-haspopup="dialog" aria-controls="howtoModal" title="How this works">ⓘ</button>
     </header>
@@ -348,6 +350,7 @@
   <div class="hidden" id="howtoModal" role="dialog" aria-modal="true" aria-labelledby="howtoTitle">
     <div class="howto-card">
       <h2 id="howtoTitle">How this works</h2>
+      <p><b>FinnBots is a Solana NFT collection.</b> Pick-a-Bot runs on Solana — you'll need a Solana wallet (Phantom recommended) to play for real $OIL.</p>
       <p><b>The odds.</b> Ten Bots in the line-up, one drawn each round — 1 in 10, every round, the same for everyone whether you're playing free or for real $OIL.</p>
       <p><b>Free Play.</b> No wallet, no cost. Pick a Bot and play, purely for fun.</p>
       <p><b>$OIL Play.</b> Hold a FinnBot, connect your wallet, and pay 25 $OIL to enter. Win, and 200 $OIL is yours — paid in the next weekly batch, same as emissions, not instantly.</p>
@@ -558,7 +561,7 @@
         html += '<p class="detail">One in ten. Have another go — it costs nothing here.</p>';
       }
       html += '<button class="again" id="againBtn" type="button">Play again</button>';
-      html += '<p class="upsell">Free play is just for fun. <b>Hold a FinnBot to play for real $OIL prizes</b> — winners are paid in the weekly batch, and the winning Bot is drawn on-chain so nobody can rig it.</p>';
+      html += '<p class="upsell">Free play is just for fun. <b>Hold a FinnBot to play for real $OIL prizes</b> — winners are paid in the weekly batch, and the winning Bot is drawn on-chain so nobody can rig it. <a href="https://magiceden.us/marketplace/finnbot" target="_blank" rel="noopener">Buy a Bot on Magic Eden ↗</a></p>';
     }
     html += '</div>';
     stage.innerHTML = html;
