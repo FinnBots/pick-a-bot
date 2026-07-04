@@ -320,7 +320,7 @@
 
     <section class="walletbar" id="connectCard">
       <div class="wb-row">
-        <span class="wb-text">Hold a FinnBot to play for real $OIL</span>
+        <span class="wb-text">Hold 25 $OIL to play — a Bot pays 1.5× on a win</span>
         <button class="connect-btn" id="connectBtn" type="button">Connect</button>
       </div>
       <div class="wallet-status hidden" id="walletStatus" aria-live="polite"></div>
@@ -353,9 +353,9 @@
       <p><b>FinnBots is a Solana NFT collection.</b> Pick-a-Bot runs on Solana — you'll need a Solana wallet (Phantom recommended) to play for real $OIL.</p>
       <p><b>The odds.</b> Ten Bots in the line-up, one drawn each round — 1 in 10, every round, the same for everyone whether you're playing free or for real $OIL.</p>
       <p><b>Free Play.</b> No wallet, no cost. Pick a Bot and play, purely for fun.</p>
-      <p><b>$OIL Play.</b> Hold a FinnBot, connect your wallet, and pay 25 $OIL to enter. Win, and 200 $OIL is yours — paid in the next weekly batch, same as emissions, not instantly.</p>
+      <p><b>$OIL Play.</b> Anyone holding at least 25 $OIL can play — connect your wallet and pay 25 $OIL to enter. Win, and 200 $OIL is yours, paid in the next weekly batch (same as emissions, not instantly). <b>Hold a FinnBot and a win pays 1.5× — 300 $OIL instead of 200.</b> Your Bot holding is re-checked when the batch is paid.</p>
       <p><b>Payment.</b> You sign exactly one transaction: your 25 $OIL entry fee. Nothing else is ever requested, and nothing is taken unless you choose to play.</p>
-      <p><b>Wallet safety.</b> Connecting only lets us read which Bots you hold — that's it. We'll never ask for your seed phrase or private key, and your wallet only ever prompts you once, for the entry payment itself, which you approve or decline each time.</p>
+      <p><b>Wallet safety.</b> Connecting only lets us read your $OIL balance and which Bots you hold — that's it. We'll never ask for your seed phrase or private key, and your wallet only ever prompts you once, for the entry payment itself, which you approve or decline each time.</p>
       <button class="howto-close" id="howtoCloseBtn" type="button">Got it</button>
     </div>
   </div>
@@ -416,7 +416,7 @@
     ENTRY_FEE: 25,
     DECIMALS: 2
   };
-  var wallet = { pubkey: null, bots: 0 };
+  var wallet = { pubkey: null, bots: 0, oil: 0 };  // oil = liquid $OIL balance in whole OIL
   var BOTSET = null;          // Set of real Bot mint addresses, loaded from bots.json
   var BOTSET_READY = false;   // true once the list load has resolved (success or failure)
 
@@ -539,10 +539,14 @@
     if(paid){
       var sigShort = opts.signature ? (opts.signature.slice(0,6)+'…'+opts.signature.slice(-6)) : '';
       if(win){
+        var prizeAmt = wallet.bots > 0 ? 300 : 200;
+        var bonusNote = wallet.bots > 0
+          ? ' (200 base + 1.5× Bot-holder bonus)'
+          : '';
         html += '<h2>Matched!</h2>';
         html += '<div class="bots-shown">'+yourBot+'</div>';
-        html += '<span class="prize">200 $OIL — recorded for the weekly batch</span>';
-        html += '<p class="detail">Your entry is on-chain'+(sigShort?' ('+sigShort+')':'')+'. The prize isn’t sent instantly — it arrives with the next weekly $OIL payout, same as emissions.</p>';
+        html += '<span class="prize">'+prizeAmt+' $OIL'+bonusNote+' — recorded for the weekly batch</span>';
+        html += '<p class="detail">Your entry is on-chain'+(sigShort?' ('+sigShort+')':'')+'. The prize isn’t sent instantly — it arrives with the next weekly $OIL payout, same as emissions. Your Bot holding is re-checked at payout time.</p>';
       } else {
         html += '<h2>No match this time</h2>';
         html += '<div class="bots-shown">'+yourBot+drawnBot+'</div>';
@@ -553,7 +557,7 @@
       if(win){
         html += '<h2>Matched!</h2>';
         html += '<div class="bots-shown">'+yourBot+'</div>';
-        html += '<span class="prize">In a paid round, that wins 200 $OIL</span>';
+        html += '<span class="prize">In a paid round, that wins 200 $OIL — or 300 if you hold a Bot</span>';
         html += '<p class="detail">One in ten — and you nailed it.</p>';
       } else {
         html += '<h2>No match this time</h2>';
@@ -561,7 +565,7 @@
         html += '<p class="detail">One in ten. Have another go — it costs nothing here.</p>';
       }
       html += '<button class="again" id="againBtn" type="button">Play again</button>';
-      html += '<p class="upsell">Free play is just for fun. <b>Hold a FinnBot to play for real $OIL prizes</b> — winners are paid in the weekly batch, and the winning Bot is drawn on-chain so nobody can rig it. <a href="https://magiceden.us/marketplace/finnbot" target="_blank" rel="noopener">Buy a Bot on Magic Eden ↗</a></p>';
+      html += '<p class="upsell">Free play is just for fun. <b>Hold $OIL to play for real prizes</b> — anyone with '+CFG.ENTRY_FEE+' $OIL can enter, and <b>holding a FinnBot pays 1.5× on a win (300 instead of 200)</b>. Winners are paid in the weekly batch, and the winning Bot is drawn on-chain so nobody can rig it. <a href="https://magiceden.us/marketplace/finnbot" target="_blank" rel="noopener">Buy a Bot on Magic Eden ↗</a></p>';
     }
     html += '</div>';
     stage.innerHTML = html;
@@ -592,7 +596,13 @@
 
   if(TEST_MODE){ document.getElementById('testBanner').classList.remove('hidden'); }
 
-  function canPlayPaid(){ return !!wallet.pubkey && wallet.bots > 0; }
+  // Entry gate (v1.1, 4 July 2026): open to ANY $OIL holder with enough liquid
+  // OIL to cover the entry fee — Bot ownership is no longer required to play.
+  // Bot ownership instead grants a 1.5x prize multiplier, applied at payout time
+  // by the weekly scanner. The definitive balance check still happens again in
+  // the paid-play flow right before the transaction is built, so this can never
+  // let a wallet overspend.
+  function canPlayPaid(){ return !!wallet.pubkey && wallet.oil >= CFG.ENTRY_FEE; }
 
   function getProvider(){
     if(window.phantom && window.phantom.solana && window.phantom.solana.isPhantom) return window.phantom.solana;
@@ -618,7 +628,7 @@
       var resp = await provider.connect();
       wallet.pubkey = resp.publicKey.toString();
       connectBtn.textContent = 'Connected';
-      setStatus('Connected as <span class="addr">'+shortAddr(wallet.pubkey)+'</span><br/>Checking your FinnBots…');
+      setStatus('Connected as <span class="addr">'+shortAddr(wallet.pubkey)+'</span><br/>Checking your $OIL balance…');
       checkHolder(wallet.pubkey);
     }catch(e){
       connectBtn.disabled = false;
@@ -669,23 +679,56 @@
     }); }
   }
 
-  // No-key holder check. Fail-safe: never wrongly clears a non-holder, never wrongly blocks a holder.
+  // Reads the wallet's liquid $OIL balance (whole OIL) by summing its OIL token
+  // account(s). Used by the TEST_MODE branch, which talks to the local validator
+  // directly; the live branch reads OIL inline from its existing holder-check RPC
+  // call. Returns 0 on any failure — fail-safe: a lookup glitch never falsely
+  // clears a wallet, it just leaves them on free play.
+  async function fetchOilBalance(owner){
+    try{
+      var body = JSON.stringify({ jsonrpc:'2.0', id:'oilbal', method:'getTokenAccountsByOwner',
+        params:[ owner, { mint: CFG.OIL_MINT }, { encoding:'jsonParsed' } ] });
+      var r = await fetch(CFG.RPC, { method:'POST', headers:{'Content-Type':'application/json'}, body:body });
+      if(!r.ok) return 0;
+      var j = await r.json();
+      var accts = j && j.result && j.result.value;
+      if(!accts || !accts.length) return 0;
+      var base = 0;
+      accts.forEach(function(acc){
+        try{ base += Number(acc.account.data.parsed.info.tokenAmount.amount); }catch(e){}
+      });
+      return base / Math.pow(10, CFG.DECIMALS);
+    }catch(e){ return 0; }
+  }
+
+  // No-key eligibility check. Reads $OIL balance (the entry gate) and Bot count
+  // (now only for the 1.5x-bonus messaging). Fail-safe throughout.
   async function checkHolder(owner){
     if(TEST_MODE){
-      // Test wallet holds no real Bots — that's expected and correct. TEST_MODE stands in for
-      // "cleared to play" ONLY here, and only because CFG is also pointed at fake money.
-      wallet.bots = 999;
-      setStatus('Connected as <span class="addr">'+shortAddr(owner)+'</span><br/>🧪 TEST MODE — holder check skipped. Using fake test $OIL, not real Bots.', 'ok');
-      playPaidBtn.hidden = false;
-      playPaidBtn.disabled = !(picked !== null);
-      if(picked !== null) playPaidBtn.textContent = 'Play for '+CFG.ENTRY_FEE+' $OIL';
+      // In TEST_MODE we still read the real (test) $OIL balance so the new
+      // balance gate can be exercised end-to-end. Bot count is faked, since the
+      // test wallet holds no real Bots — the multiplier is verified separately
+      // by the scanner's own tests, not here.
+      wallet.bots = 0;
+      wallet.oil = await fetchOilBalance(owner);
+      if(wallet.oil >= CFG.ENTRY_FEE){
+        setStatus('Connected as <span class="addr">'+shortAddr(owner)+'</span><br/>🧪 TEST MODE — you hold <b>'+wallet.oil.toFixed(2)+'</b> test $OIL. Cleared to play (fake money).', 'ok');
+        playPaidBtn.hidden = false;
+        playPaidBtn.disabled = !(picked !== null);
+        if(picked !== null) playPaidBtn.textContent = 'Play for '+CFG.ENTRY_FEE+' $OIL';
+      } else {
+        setStatus('Connected as <span class="addr">'+shortAddr(owner)+'</span><br/>🧪 TEST MODE — this wallet holds '+wallet.oil.toFixed(2)+' test $OIL, need '+CFG.ENTRY_FEE+' to play.', 'warn');
+        playPaidBtn.hidden = true;
+      }
       return;
     }
     if(!BOTSET_READY){ await delay(700); }
-    if(!BOTSET){
-      setStatus('Connected as <span class="addr">'+shortAddr(owner)+'</span><br/>Couldn’t load the Bot list just now, so holdings can’t be verified. Please retry in a moment — free play below is always open.', 'warn');
-      return;
-    }
+    // Note: BOTSET (the Bot list) is now only used to detect the 1.5x bonus, not
+    // to gate entry. If it failed to load we can still clear an $OIL holder to
+    // play — they just won't see the bonus flagged. We proceed either way; the
+    // OIL balance below is what actually gates. Bot count defaults to 0 if the
+    // list is unavailable, and the scanner re-checks Bot ownership at payout time
+    // regardless, so the bonus is never lost by a client-side list glitch.
     var body = JSON.stringify({ jsonrpc:'2.0', id:'finnbots', method:'getTokenAccountsByOwner',
       params:[ owner, { programId: CFG.TOKEN_PROGRAM }, { encoding:'jsonParsed' } ] });
 
@@ -701,22 +744,31 @@
     if(!value){ showVerifyFail(owner); return; }
 
     var held = 0;
+    var oilBase = 0;
     value.forEach(function(acc){
       try{
         var info = acc.account.data.parsed.info;
         var amt = info.tokenAmount;
-        // an NFT held = exactly 0 decimals and a balance of at least 1
-        if(amt && Number(amt.decimals) === 0 && Number(amt.amount) >= 1 && BOTSET.has(info.mint)){ held++; }
+        // A Bot held = exactly 0 decimals, balance >= 1, and a known Bot mint.
+        if(amt && Number(amt.decimals) === 0 && Number(amt.amount) >= 1 && BOTSET && BOTSET.has(info.mint)){ held++; }
+        // Liquid $OIL balance = the token account for the OIL mint.
+        if(info.mint === CFG.OIL_MINT && amt){ oilBase += Number(amt.amount); }
       }catch(e){ /* skip any malformed account */ }
     });
     wallet.bots = held;
-    if(held > 0){
-      setStatus('Connected as <span class="addr">'+shortAddr(owner)+'</span><br/>You hold <b>'+held+'</b> FinnBot'+(held===1?'':'s')+' — you’re cleared to play for real $OIL.', 'ok');
+    wallet.oil = oilBase / Math.pow(10, CFG.DECIMALS);
+
+    if(wallet.oil >= CFG.ENTRY_FEE){
+      // Cleared to play — gate is $OIL, not Bots. Bot ownership just adds the bonus.
+      var bonusLine = held > 0
+        ? 'You hold <b>'+held+'</b> FinnBot'+(held===1?'':'s')+', so a win pays the <b>1.5× bonus (300 $OIL)</b>.'
+        : 'Hold a FinnBot and a win pays <b>1.5× (300 $OIL)</b> instead of 200.';
+      setStatus('Connected as <span class="addr">'+shortAddr(owner)+'</span><br/>You hold <b>'+wallet.oil.toFixed(2)+'</b> $OIL — cleared to play. '+bonusLine, 'ok');
       playPaidBtn.hidden = false;
       playPaidBtn.disabled = !(picked !== null);
       if(picked !== null) playPaidBtn.textContent = 'Play for '+CFG.ENTRY_FEE+' $OIL';
     } else {
-      setStatus('Connected as <span class="addr">'+shortAddr(owner)+'</span><br/>No FinnBots found in this wallet. You’ll need one to play for real — but free play below is open to everyone.', 'warn');
+      setStatus('Connected as <span class="addr">'+shortAddr(owner)+'</span><br/>This wallet holds <b>'+wallet.oil.toFixed(2)+'</b> $OIL — you need at least '+CFG.ENTRY_FEE+' to play for real. Free play below is open to everyone.', 'warn');
       playPaidBtn.hidden = true;
     }
   }
@@ -784,7 +836,7 @@
 
   playPaidBtn.addEventListener('click', async function(){
     if(busy || picked === null) return;
-    if(!canPlayPaid()){ setStatus('Connect a wallet holding a FinnBot to play for real $OIL.', 'warn'); return; }
+    if(!canPlayPaid()){ setStatus('Connect a wallet holding at least '+CFG.ENTRY_FEE+' $OIL to play for real.', 'warn'); return; }
 
     busy = true;
     playPaidBtn.disabled = true;
