@@ -663,21 +663,6 @@
   (async function resumePhantomState(){
     var action = new URLSearchParams(window.location.search).get('phantom_action');
 
-    // ---- TEMPORARY DIAGNOSTIC (5 July 2026) ----
-    // Two prior fixes here were based on assumptions about what Phantom
-    // sends back that turned out wrong. Rather than guess a third time,
-    // show exactly what's actually in the URL when we land back, so the
-    // next fix is based on real data. Safe to show — these are all
-    // single-use, fund-less throwaway keys, nothing sensitive. Remove this
-    // block once the real issue is identified and fixed.
-    if(action){
-      var rawParams = window.location.search;
-      console.log('[phantom-diag] raw return query:', rawParams);
-      setStatus('<b>DIAGNOSTIC — please screenshot this box:</b><br/><span style="word-break:break-all; font-size:11px;">action='+action+'<br/>full query: '+ (rawParams || '(empty)') +'</span>', 'warn');
-      return; // stop here deliberately so this message isn't overwritten — this build is for capturing data only, it won't complete the connection
-    }
-    // ---- END TEMPORARY DIAGNOSTIC ----
-
     function cleanRedirectParams(){
       try{
         var url = new URL(window.location.href);
@@ -686,54 +671,59 @@
       }catch(e){}
     }
 
-    // Turns out Phantom's own in-app browser does NOT inject window.solana
-    // when it's showing a connect-redirect landing page — confirmed by
-    // testing, not assumed. So the real fix lives in phantom-mobile.js (the
-    // decryption key now travels in the URL itself, not sessionStorage,
-    // since that storage never survives the Chrome→Phantom-browser jump).
-    // This is just a cheap, instant, non-blocking check in case some other
-    // browser/OS combination DOES have the provider ready immediately —
-    // costs nothing if not, and skips the decrypt step entirely if so.
+    // Confirmed by testing: after tapping Connect in Chrome/Edge and landing
+    // back inside Phantom's own in-app browser, window.solana DOES appear —
+    // just not always instantly. Waiting a few seconds and then using the
+    // exact same proven Connect flow as the desktop-extension path is the
+    // reliable fix; trying to decrypt Phantom's own response ourselves
+    // turned out to be the fragile, unnecessary part.
+    async function waitForProvider(maxMs){
+      var start = Date.now();
+      var p = getProvider();
+      while(!p && Date.now() - start < maxMs){
+        await delay(300);
+        p = getProvider();
+      }
+      return p;
+    }
+
     if(action){
-      var quickProvider = getProvider();
-      if(quickProvider){
-        cleanRedirectParams();
-        if(window.PhantomMobile) PhantomMobile.clearSession();
-        clearPendingPlay();
-        if(action === 'connect'){
-          connectBtn.disabled = true; connectBtn.textContent = 'Connecting…';
-          quickProvider.connect().then(function(resp){
+      cleanRedirectParams();
+      if(window.PhantomMobile) PhantomMobile.clearSession();
+      clearPendingPlay();
+
+      if(action === 'connect'){
+        connectBtn.disabled = true; connectBtn.textContent = 'Finishing connection…';
+        setStatus('Almost there — finishing the connection to Phantom…');
+        var provider = await waitForProvider(6000);
+        if(provider){
+          try{
+            var resp = await provider.connect();
             wallet.pubkey = resp.publicKey.toString();
             connectBtn.textContent = 'Connected';
             setStatus('Connected as <span class="addr">'+shortAddr(wallet.pubkey)+'</span><br/>Checking your $OIL balance…');
             checkHolder(wallet.pubkey);
-          }).catch(function(){
+          }catch(e){
             connectBtn.disabled = false; connectBtn.textContent = 'Connect Phantom';
             setStatus('Connection cancelled. Tap Connect to try again.', 'warn');
-          });
+          }
+        }else{
+          // Genuinely not ready yet — a calm next step, not an error. The
+          // person is already inside Phantom's browser at this point, so a
+          // second tap reliably works (this is the same path that just
+          // failed to auto-trigger, tried again with a fresh click).
+          connectBtn.disabled = false; connectBtn.textContent = 'Connect Phantom';
+          setStatus('You\u2019re back from Phantom — tap Connect once more to finish.', 'warn');
         }
-        return;
       }
-    }
-
-    if(!window.PhantomMobile) return;
-    var result = PhantomMobile.consumePendingRedirect('pickabot_sign');
-    if(result){
-      if(result.type === 'error'){ setStatus(result.message, 'warn'); return; }
-      if(result.type === 'connect'){
-        wallet.pubkey = result.publicKey;
-        connectBtn.textContent = 'Connected'; connectBtn.disabled = true;
-        setStatus('Connected as <span class="addr">'+shortAddr(wallet.pubkey)+'</span><br/>Checking your $OIL balance…');
-        checkHolder(wallet.pubkey);
-      } else if(result.type === 'signTransaction'){
-        if(!wallet.pubkey && PhantomMobile.hasSession()) wallet.pubkey = PhantomMobile.getSessionPublicKey();
-        resumePaidPlayAfterSign(result.txBytes);
-      }
+      // If action was the sign marker, there's nothing to resume — paid
+      // play will go through the injected provider directly next time it's tapped.
       return;
     }
+
     // No redirect this load — but if a session already exists (e.g. the
     // person just refreshed the page), restore the connected UI silently.
-    if(!wallet.pubkey && PhantomMobile.hasSession()){
+    if(!wallet.pubkey && window.PhantomMobile && PhantomMobile.hasSession()){
       wallet.pubkey = PhantomMobile.getSessionPublicKey();
       connectBtn.textContent = 'Connected'; connectBtn.disabled = true;
       setStatus('Connected as <span class="addr">'+shortAddr(wallet.pubkey)+'</span><br/>Checking your $OIL balance…');
