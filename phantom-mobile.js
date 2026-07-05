@@ -76,18 +76,29 @@
   }
 
   // ---- CONNECT ----
-
+  //
+  // NOTE on the dapp_secret URL param below: this is deliberately carried in
+  // the URL rather than only in sessionStorage. On iOS, tapping Connect in
+  // Chrome/Edge often causes Phantom to bring the redirect back inside its
+  // OWN in-app browser — a different storage partition entirely from the
+  // Chrome tab that started this, so anything saved to sessionStorage before
+  // navigating away is invisible when we land back. Putting the secret in
+  // the URL sidesteps that; it's safe because this key is single-use,
+  // controls no funds, and can only decrypt the one connect response it's
+  // paired with.
   function buildConnectURL(appUrl) {
     var dappKeyPair = global.nacl.box.keyPair();
     saveJSON('connect_kp', {
       pub: b58enc(dappKeyPair.publicKey),
       sec: b58enc(dappKeyPair.secretKey)
     });
+    var redirectLink = appUrl + (appUrl.indexOf('?') >= 0 ? '&' : '?') +
+      'phantom_action=connect&dapp_secret=' + encodeURIComponent(b58enc(dappKeyPair.secretKey));
     var params = new URLSearchParams({
       dapp_encryption_public_key: b58enc(dappKeyPair.publicKey),
       cluster: CLUSTER,
       app_url: appUrl,
-      redirect_link: appUrl + (appUrl.indexOf('?') >= 0 ? '&' : '?') + 'phantom_action=connect'
+      redirect_link: redirectLink
     });
     return 'https://phantom.app/ul/v1/connect?' + params.toString();
   }
@@ -100,7 +111,7 @@
   function handleConnectRedirect() {
     var errCode = getParam('errorCode');
     if (errCode) {
-      stripQueryParams(['phantom_action', 'errorCode', 'errorMessage']);
+      stripQueryParams(['phantom_action', 'dapp_secret', 'errorCode', 'errorMessage']);
       return { type: 'error', message: getParam('errorMessage') || 'Connection was cancelled in Phantom.' };
     }
     var phantomPubB58 = getParam('phantom_encryption_public_key');
@@ -108,12 +119,20 @@
     var dataB58 = getParam('data');
     if (!phantomPubB58 || !nonceB58 || !dataB58) return null;
 
-    var kp = loadJSON('connect_kp');
-    stripQueryParams(['phantom_action', 'phantom_encryption_public_key', 'nonce', 'data']);
-    if (!kp) return { type: 'error', message: 'Connection session expired — please tap Connect again.' };
+    // Prefer the secret carried in the URL — it survives Phantom bouncing us
+    // into its own in-app browser, which sessionStorage cannot. Only fall
+    // back to storage for the rarer case where the URL param is missing
+    // (e.g. an older cached page still using the previous connect link).
+    var secretB58 = getParam('dapp_secret');
+    if (!secretB58) {
+      var kp = loadJSON('connect_kp');
+      secretB58 = kp ? kp.sec : null;
+    }
+    stripQueryParams(['phantom_action', 'dapp_secret', 'phantom_encryption_public_key', 'nonce', 'data']);
+    if (!secretB58) return { type: 'error', message: 'Connection session expired — please tap Connect again.' };
 
     try {
-      var secretKey = b58dec(kp.sec);
+      var secretKey = b58dec(secretB58);
       var phantomPub = b58dec(phantomPubB58);
       var sharedSecret = global.nacl.box.before(phantomPub, secretKey);
       var nonce = b58dec(nonceB58);
@@ -152,10 +171,15 @@
     // keypair only needs to be syntactically present, so a throwaway one
     // generated fresh for this request is correct and simplest.
     var kp = global.nacl.box.keyPair();
+    // Carry the shared secret in the redirect_link too, same reasoning as
+    // Connect: if this round-trip also lands in a different storage context
+    // than it started in, the response can still be decrypted without it.
+    var redirectLink = appUrl + (appUrl.indexOf('?') >= 0 ? '&' : '?') +
+      'phantom_action=' + marker + '&dapp_shared=' + encodeURIComponent(sess.sharedSecret);
     var params = new URLSearchParams({
       dapp_encryption_public_key: b58enc(kp.publicKey),
       nonce: b58enc(nonce),
-      redirect_link: appUrl + (appUrl.indexOf('?') >= 0 ? '&' : '?') + 'phantom_action=' + marker,
+      redirect_link: redirectLink,
       payload: b58enc(encrypted)
     });
     return 'https://phantom.app/ul/v1/signTransaction?' + params.toString();
@@ -173,19 +197,20 @@
 
     var errCode = getParam('errorCode');
     if (errCode) {
-      stripQueryParams(['phantom_action', 'errorCode', 'errorMessage']);
+      stripQueryParams(['phantom_action', 'dapp_shared', 'errorCode', 'errorMessage']);
       return { type: 'error', message: getParam('errorMessage') || 'Signing was cancelled in Phantom.' };
     }
     var nonceB58 = getParam('nonce');
     var dataB58 = getParam('data');
-    stripQueryParams(['phantom_action', 'nonce', 'data']);
+    var sharedB58FromUrl = getParam('dapp_shared');
+    stripQueryParams(['phantom_action', 'dapp_shared', 'nonce', 'data']);
     if (!nonceB58 || !dataB58) return null;
 
     var sess = loadJSON('session');
-    if (!sess) return { type: 'error', message: 'Your Phantom session expired — reconnect and try again.' };
+    if (!sharedB58FromUrl && !sess) return { type: 'error', message: 'Your Phantom session expired — reconnect and try again.' };
 
     try {
-      var sharedSecret = b58dec(sess.sharedSecret);
+      var sharedSecret = b58dec(sharedB58FromUrl || sess.sharedSecret);
       var nonce = b58dec(nonceB58);
       var data = b58dec(dataB58);
       var decrypted = global.nacl.box.open.after(data, nonce, sharedSecret);

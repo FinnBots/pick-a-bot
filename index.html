@@ -666,42 +666,28 @@
     function cleanRedirectParams(){
       try{
         var url = new URL(window.location.href);
-        ['phantom_action','phantom_encryption_public_key','nonce','data','errorCode','errorMessage'].forEach(function(k){ url.searchParams.delete(k); });
+        ['phantom_action','dapp_secret','dapp_shared','phantom_encryption_public_key','nonce','data','errorCode','errorMessage'].forEach(function(k){ url.searchParams.delete(k); });
         window.history.replaceState({}, document.title, url.pathname + (url.search || '') + url.hash);
       }catch(e){}
     }
 
-    // Phantom's own in-app browser doesn't always have window.solana ready the
-    // instant the page loads after a redirect — it can take a couple of
-    // hundred milliseconds to inject. Give it a short window before deciding
-    // it's genuinely not there, rather than failing on the very first check.
-    async function waitForProvider(maxMs){
-      var start = Date.now();
-      var p = getProvider();
-      while(!p && Date.now() - start < maxMs){
-        await delay(100);
-        p = getProvider();
-      }
-      return p;
-    }
-
-    // Most common real-world case on iOS: tapping Connect in Chrome/Edge opens
-    // Phantom, and Phantom brings you BACK inside its own in-app browser rather
-    // than handing control back to Chrome — Chrome doesn't support the app-
-    // resume handoff Safari does. That's fine: Phantom's own browser injects
-    // window.solana directly, so once we detect we've landed there, just use
-    // the normal, already-proven injected-provider connect — no need to decrypt
-    // anything, and no dependency on storage surviving the app-switch (which it
-    // can't, since Phantom's browser is a separate storage context from Chrome's).
+    // Turns out Phantom's own in-app browser does NOT inject window.solana
+    // when it's showing a connect-redirect landing page — confirmed by
+    // testing, not assumed. So the real fix lives in phantom-mobile.js (the
+    // decryption key now travels in the URL itself, not sessionStorage,
+    // since that storage never survives the Chrome→Phantom-browser jump).
+    // This is just a cheap, instant, non-blocking check in case some other
+    // browser/OS combination DOES have the provider ready immediately —
+    // costs nothing if not, and skips the decrypt step entirely if so.
     if(action){
-      var provider = await waitForProvider(2000);
-      if(provider){
+      var quickProvider = getProvider();
+      if(quickProvider){
         cleanRedirectParams();
         if(window.PhantomMobile) PhantomMobile.clearSession();
         clearPendingPlay();
         if(action === 'connect'){
           connectBtn.disabled = true; connectBtn.textContent = 'Connecting…';
-          provider.connect().then(function(resp){
+          quickProvider.connect().then(function(resp){
             wallet.pubkey = resp.publicKey.toString();
             connectBtn.textContent = 'Connected';
             setStatus('Connected as <span class="addr">'+shortAddr(wallet.pubkey)+'</span><br/>Checking your $OIL balance…');
@@ -711,13 +697,8 @@
             setStatus('Connection cancelled. Tap Connect to try again.', 'warn');
           });
         }
-        // If it's the sign marker, there's nothing to resume here — paid play
-        // will now go through the injected provider directly next time it's tapped.
         return;
       }
-      // No provider even after waiting — genuinely still in a browser Phantom
-      // never injects into. Fall through to the encrypted-payload path below,
-      // which is the only remaining option for that case.
     }
 
     if(!window.PhantomMobile) return;
