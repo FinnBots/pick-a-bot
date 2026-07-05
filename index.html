@@ -662,6 +662,7 @@
 
   (async function resumePhantomState(){
     var action = new URLSearchParams(window.location.search).get('phantom_action');
+    var rawParamsForDiagnostic = window.location.search; // captured BEFORE any cleanup strips it
 
     function cleanRedirectParams(){
       try{
@@ -671,12 +672,6 @@
       }catch(e){}
     }
 
-    // Confirmed by testing: after tapping Connect in Chrome/Edge and landing
-    // back inside Phantom's own in-app browser, window.solana DOES appear —
-    // just not always instantly. Waiting a few seconds and then using the
-    // exact same proven Connect flow as the desktop-extension path is the
-    // reliable fix; trying to decrypt Phantom's own response ourselves
-    // turned out to be the fragile, unnecessary part.
     async function waitForProvider(maxMs){
       var start = Date.now();
       var p = getProvider();
@@ -708,12 +703,17 @@
             setStatus('Connection cancelled. Tap Connect to try again.', 'warn');
           }
         }else{
-          // Genuinely not ready yet — a calm next step, not an error. The
-          // person is already inside Phantom's browser at this point, so a
-          // second tap reliably works (this is the same path that just
-          // failed to auto-trigger, tried again with a fresh click).
+          // Still not there after waiting. Show the friendly next step AND
+          // the raw diagnostic data together — so if a retap also fails,
+          // this one screenshot has everything needed to fix it properly
+          // instead of another round trip just to capture data.
           connectBtn.disabled = false; connectBtn.textContent = 'Connect Phantom';
-          setStatus('You\u2019re back from Phantom — tap Connect once more to finish.', 'warn');
+          setStatus(
+            'You\u2019re back from Phantom — tap Connect once more to finish.' +
+            '<br/><br/><b style="font-size:11px;">DIAGNOSTIC — please screenshot this:</b>' +
+            '<br/><span style="word-break:break-all; font-size:10px;">'+ (rawParamsForDiagnostic || '(empty)') +'</span>',
+            'warn'
+          );
         }
       }
       // If action was the sign marker, there's nothing to resume — paid
