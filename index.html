@@ -661,6 +661,46 @@
   function clearPendingPlay(){ try{ sessionStorage.removeItem(PENDING_PLAY_KEY); }catch(e){} }
 
   (function resumePhantomState(){
+    var action = new URLSearchParams(window.location.search).get('phantom_action');
+
+    function cleanRedirectParams(){
+      try{
+        var url = new URL(window.location.href);
+        ['phantom_action','phantom_encryption_public_key','nonce','data','errorCode','errorMessage'].forEach(function(k){ url.searchParams.delete(k); });
+        window.history.replaceState({}, document.title, url.pathname + (url.search || '') + url.hash);
+      }catch(e){}
+    }
+
+    // Most common real-world case on iOS: tapping Connect in Chrome/Edge opens
+    // Phantom, and Phantom brings you BACK inside its own in-app browser rather
+    // than handing control back to Chrome — Chrome doesn't support the app-
+    // resume handoff Safari does. That's fine: Phantom's own browser injects
+    // window.solana directly, so once we detect we've landed there, just use
+    // the normal, already-proven injected-provider connect — no need to decrypt
+    // anything, and no dependency on storage surviving the app-switch (which it
+    // can't, since Phantom's browser is a separate storage context from Chrome's).
+    if(action && getProvider()){
+      var provider = getProvider();
+      cleanRedirectParams();
+      if(window.PhantomMobile) PhantomMobile.clearSession();
+      clearPendingPlay();
+      if(action === 'connect'){
+        connectBtn.disabled = true; connectBtn.textContent = 'Connecting…';
+        provider.connect().then(function(resp){
+          wallet.pubkey = resp.publicKey.toString();
+          connectBtn.textContent = 'Connected';
+          setStatus('Connected as <span class="addr">'+shortAddr(wallet.pubkey)+'</span><br/>Checking your $OIL balance…');
+          checkHolder(wallet.pubkey);
+        }).catch(function(){
+          connectBtn.disabled = false; connectBtn.textContent = 'Connect Phantom';
+          setStatus('Connection cancelled. Tap Connect to try again.', 'warn');
+        });
+      }
+      // If it's the sign marker, there's nothing to resume here — paid play
+      // will now go through the injected provider directly next time it's tapped.
+      return;
+    }
+
     if(!window.PhantomMobile) return;
     var result = PhantomMobile.consumePendingRedirect('pickabot_sign');
     if(result){
