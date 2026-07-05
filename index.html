@@ -663,6 +663,21 @@
   (async function resumePhantomState(){
     var action = new URLSearchParams(window.location.search).get('phantom_action');
 
+    // ---- TEMPORARY DIAGNOSTIC (5 July 2026) ----
+    // Two prior fixes here were based on assumptions about what Phantom
+    // sends back that turned out wrong. Rather than guess a third time,
+    // show exactly what's actually in the URL when we land back, so the
+    // next fix is based on real data. Safe to show — these are all
+    // single-use, fund-less throwaway keys, nothing sensitive. Remove this
+    // block once the real issue is identified and fixed.
+    if(action){
+      var rawParams = window.location.search;
+      console.log('[phantom-diag] raw return query:', rawParams);
+      setStatus('<b>DIAGNOSTIC — please screenshot this box:</b><br/><span style="word-break:break-all; font-size:11px;">action='+action+'<br/>full query: '+ (rawParams || '(empty)') +'</span>', 'warn');
+      return; // stop here deliberately so this message isn't overwritten — this build is for capturing data only, it won't complete the connection
+    }
+    // ---- END TEMPORARY DIAGNOSTIC ----
+
     function cleanRedirectParams(){
       try{
         var url = new URL(window.location.href);
