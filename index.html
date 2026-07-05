@@ -660,7 +660,7 @@
   function loadPendingPlay(){ try{ var v = sessionStorage.getItem(PENDING_PLAY_KEY); return v ? JSON.parse(v) : null; }catch(e){ return null; } }
   function clearPendingPlay(){ try{ sessionStorage.removeItem(PENDING_PLAY_KEY); }catch(e){} }
 
-  (function resumePhantomState(){
+  (async function resumePhantomState(){
     var action = new URLSearchParams(window.location.search).get('phantom_action');
 
     function cleanRedirectParams(){
@@ -671,6 +671,20 @@
       }catch(e){}
     }
 
+    // Phantom's own in-app browser doesn't always have window.solana ready the
+    // instant the page loads after a redirect — it can take a couple of
+    // hundred milliseconds to inject. Give it a short window before deciding
+    // it's genuinely not there, rather than failing on the very first check.
+    async function waitForProvider(maxMs){
+      var start = Date.now();
+      var p = getProvider();
+      while(!p && Date.now() - start < maxMs){
+        await delay(100);
+        p = getProvider();
+      }
+      return p;
+    }
+
     // Most common real-world case on iOS: tapping Connect in Chrome/Edge opens
     // Phantom, and Phantom brings you BACK inside its own in-app browser rather
     // than handing control back to Chrome — Chrome doesn't support the app-
@@ -679,26 +693,31 @@
     // the normal, already-proven injected-provider connect — no need to decrypt
     // anything, and no dependency on storage surviving the app-switch (which it
     // can't, since Phantom's browser is a separate storage context from Chrome's).
-    if(action && getProvider()){
-      var provider = getProvider();
-      cleanRedirectParams();
-      if(window.PhantomMobile) PhantomMobile.clearSession();
-      clearPendingPlay();
-      if(action === 'connect'){
-        connectBtn.disabled = true; connectBtn.textContent = 'Connecting…';
-        provider.connect().then(function(resp){
-          wallet.pubkey = resp.publicKey.toString();
-          connectBtn.textContent = 'Connected';
-          setStatus('Connected as <span class="addr">'+shortAddr(wallet.pubkey)+'</span><br/>Checking your $OIL balance…');
-          checkHolder(wallet.pubkey);
-        }).catch(function(){
-          connectBtn.disabled = false; connectBtn.textContent = 'Connect Phantom';
-          setStatus('Connection cancelled. Tap Connect to try again.', 'warn');
-        });
+    if(action){
+      var provider = await waitForProvider(2000);
+      if(provider){
+        cleanRedirectParams();
+        if(window.PhantomMobile) PhantomMobile.clearSession();
+        clearPendingPlay();
+        if(action === 'connect'){
+          connectBtn.disabled = true; connectBtn.textContent = 'Connecting…';
+          provider.connect().then(function(resp){
+            wallet.pubkey = resp.publicKey.toString();
+            connectBtn.textContent = 'Connected';
+            setStatus('Connected as <span class="addr">'+shortAddr(wallet.pubkey)+'</span><br/>Checking your $OIL balance…');
+            checkHolder(wallet.pubkey);
+          }).catch(function(){
+            connectBtn.disabled = false; connectBtn.textContent = 'Connect Phantom';
+            setStatus('Connection cancelled. Tap Connect to try again.', 'warn');
+          });
+        }
+        // If it's the sign marker, there's nothing to resume here — paid play
+        // will now go through the injected provider directly next time it's tapped.
+        return;
       }
-      // If it's the sign marker, there's nothing to resume here — paid play
-      // will now go through the injected provider directly next time it's tapped.
-      return;
+      // No provider even after waiting — genuinely still in a browser Phantom
+      // never injects into. Fall through to the encrypted-payload path below,
+      // which is the only remaining option for that case.
     }
 
     if(!window.PhantomMobile) return;
