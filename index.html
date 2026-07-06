@@ -382,9 +382,9 @@
 <!-- ?v= query strings are cache-busters: bump them in lockstep with BUILD_TAG on
      every deploy so no browser (Chrome, Safari, or Phantom's webview) can ever
      silently run a stale copy of these files again. -->
-<script src="phantom-deeplink-libs.min.js?v=20260706a"></script>
-<script src="phantom-mobile.js?v=20260706a"></script>
-<script src="solana-web3.iife.min.js?v=20260706a"></script>
+<script src="phantom-deeplink-libs.min.js?v=20260706b"></script>
+<script src="phantom-mobile.js?v=20260706b"></script>
+<script src="solana-web3.iife.min.js?v=20260706b"></script>
 <script>
 (function(){
   "use strict";
@@ -667,7 +667,7 @@
   // which version is actually running (stale iOS/Phantom webview caches served
   // old builds repeatedly during the 5 July debugging session and disguised
   // themselves as code failures).
-  var BUILD_TAG = 'v7-20260706';
+  var BUILD_TAG = 'v8-20260706b';
   console.log('[pick-a-bot] build', BUILD_TAG);
 
   (async function resumePhantomState(){
@@ -710,8 +710,19 @@
       return;
     }
     if(result && result.type === 'signTransaction'){
-      if(!wallet.pubkey && PhantomMobile.hasSession()) wallet.pubkey = PhantomMobile.getSessionPublicKey();
-      resumePaidPlayAfterSign(result.txBytes);
+      var returnParams = new URLSearchParams(rawParamsForDiagnostic);
+      var pickFromUrl = returnParams.get('pick');
+      var ownerFromUrl = returnParams.get('owner');
+      if(!wallet.pubkey){
+        wallet.pubkey = (PhantomMobile.hasSession() && PhantomMobile.getSessionPublicKey()) || ownerFromUrl || null;
+      }
+      // Tidy our own params out of the URL bar (phantom-mobile already stripped its own).
+      try{
+        var u = new URL(window.location.href);
+        u.searchParams.delete('pick'); u.searchParams.delete('owner');
+        window.history.replaceState({}, document.title, u.pathname + (u.search || '') + u.hash);
+      }catch(e){}
+      resumePaidPlayAfterSign(result.txBytes, pickFromUrl, ownerFromUrl);
       return;
     }
 
@@ -942,8 +953,16 @@
   // app with a signed transaction. Mirrors the tail end of the inline
   // (desktop-extension) flow above exactly — same submit, confirm, draw,
   // and reveal steps — so both paths behave identically from here on.
-  async function resumePaidPlayAfterSign(txBytes){
-    var stored = loadPendingPlay();
+  async function resumePaidPlayAfterSign(txBytes, pickFromUrl, ownerFromUrl){
+    // Primary source is the return URL (survives Phantom's new-tab returns);
+    // sessionStorage is only a fallback for same-tab flows.
+    var stored = null;
+    var pickNum = parseInt(pickFromUrl, 10);
+    if(!isNaN(pickNum) && pickNum >= 0 && pickNum <= 9){
+      stored = { picked: pickNum, owner: ownerFromUrl || wallet.pubkey };
+    } else {
+      stored = loadPendingPlay();
+    }
     if(!stored){
       setStatus('Your entry session expired before it could finish. If $OIL was taken, check your wallet activity before playing again.', 'warn');
       return;
@@ -1022,13 +1041,18 @@
       tx.recentBlockhash = latest.blockhash;
 
       if(useMobileDeeplink){
-        // Page navigates away to the Phantom app here. Everything needed to
-        // finish (which Bot was picked) is saved first; resumePaidPlayAfterSign
-        // picks up when Phantom sends us back with the signed transaction.
-        savePendingPlay({ picked: picked, owner: wallet.pubkey });
+        // Page navigates away to the Phantom app here. CRITICAL: Phantom's
+        // browser opens the return in a brand-NEW tab (confirmed on-device —
+        // tab count increments every round-trip), so sessionStorage saved
+        // here is invisible on return. Everything needed to finish must
+        // travel in the return URL itself: the picked Bot (0–9) and the
+        // payer address — both public, nothing sensitive.
+        savePendingPlay({ picked: picked, owner: wallet.pubkey }); // kept as same-tab fallback
         setStatus('Opening Phantom to approve your entry…');
         var unsignedBytes = tx.serialize({ requireAllSignatures:false, verifySignatures:false });
-        PhantomMobile.signTransaction(unsignedBytes, window.location.origin + window.location.pathname, 'pickabot_sign');
+        var returnUrl = window.location.origin + window.location.pathname +
+          '?pick=' + picked + '&owner=' + encodeURIComponent(wallet.pubkey);
+        PhantomMobile.signTransaction(unsignedBytes, returnUrl, 'pickabot_sign');
         return;
       }
 
