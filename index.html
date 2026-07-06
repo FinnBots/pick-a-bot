@@ -379,9 +379,12 @@
     })();
   </script>
 
-<script src="phantom-deeplink-libs.min.js"></script>
-<script src="phantom-mobile.js"></script>
-<script src="solana-web3.iife.min.js"></script>
+<!-- ?v= query strings are cache-busters: bump them in lockstep with BUILD_TAG on
+     every deploy so no browser (Chrome, Safari, or Phantom's webview) can ever
+     silently run a stale copy of these files again. -->
+<script src="phantom-deeplink-libs.min.js?v=20260706a"></script>
+<script src="phantom-mobile.js?v=20260706a"></script>
+<script src="solana-web3.iife.min.js?v=20260706a"></script>
 <script>
 (function(){
   "use strict";
@@ -660,75 +663,82 @@
   function loadPendingPlay(){ try{ var v = sessionStorage.getItem(PENDING_PLAY_KEY); return v ? JSON.parse(v) : null; }catch(e){ return null; } }
   function clearPendingPlay(){ try{ sessionStorage.removeItem(PENDING_PLAY_KEY); }catch(e){} }
 
+  // Build tag — bump on every deploy. Lets us verify at a glance, on-device,
+  // which version is actually running (stale iOS/Phantom webview caches served
+  // old builds repeatedly during the 5 July debugging session and disguised
+  // themselves as code failures).
+  var BUILD_TAG = 'v7-20260706';
+  console.log('[pick-a-bot] build', BUILD_TAG);
+
   (async function resumePhantomState(){
     var action = new URLSearchParams(window.location.search).get('phantom_action');
     var rawParamsForDiagnostic = window.location.search; // captured BEFORE any cleanup strips it
 
-    function cleanRedirectParams(){
-      try{
-        var url = new URL(window.location.href);
-        ['phantom_action','dapp_secret','dapp_shared','phantom_encryption_public_key','nonce','data','errorCode','errorMessage'].forEach(function(k){ url.searchParams.delete(k); });
-        window.history.replaceState({}, document.title, url.pathname + (url.search || '') + url.hash);
-      }catch(e){}
+    function diagnosticHTML(){
+      return '<br/><br/><b style="font-size:11px;">DIAGNOSTIC ('+BUILD_TAG+') — please screenshot this:</b>' +
+        '<br/><span style="word-break:break-all; font-size:10px;">'+ (rawParamsForDiagnostic ? rawParamsForDiagnostic.slice(0,1200) : '(empty)') +'</span>';
     }
 
-    async function waitForProvider(maxMs){
-      var start = Date.now();
-      var p = getProvider();
-      while(!p && Date.now() - start < maxMs){
-        await delay(300);
-        p = getProvider();
+    if(!action) {
+      // No redirect this load — but if a session already exists (e.g. the
+      // person just refreshed the page), restore the connected UI silently.
+      if(!wallet.pubkey && window.PhantomMobile && PhantomMobile.hasSession()){
+        wallet.pubkey = PhantomMobile.getSessionPublicKey();
+        connectBtn.textContent = 'Connected'; connectBtn.disabled = true;
+        setStatus('Connected as <span class="addr">'+shortAddr(wallet.pubkey)+'</span><br/>Checking your $OIL balance…');
+        checkHolder(wallet.pubkey);
       }
-      return p;
-    }
-
-    if(action){
-      cleanRedirectParams();
-      if(window.PhantomMobile) PhantomMobile.clearSession();
-      clearPendingPlay();
-
-      if(action === 'connect'){
-        connectBtn.disabled = true; connectBtn.textContent = 'Finishing connection…';
-        setStatus('Almost there — finishing the connection to Phantom…');
-        var provider = await waitForProvider(6000);
-        if(provider){
-          try{
-            var resp = await provider.connect();
-            wallet.pubkey = resp.publicKey.toString();
-            connectBtn.textContent = 'Connected';
-            setStatus('Connected as <span class="addr">'+shortAddr(wallet.pubkey)+'</span><br/>Checking your $OIL balance…');
-            checkHolder(wallet.pubkey);
-          }catch(e){
-            connectBtn.disabled = false; connectBtn.textContent = 'Connect Phantom';
-            setStatus('Connection cancelled. Tap Connect to try again.', 'warn');
-          }
-        }else{
-          // Still not there after waiting. Show the friendly next step AND
-          // the raw diagnostic data together — so if a retap also fails,
-          // this one screenshot has everything needed to fix it properly
-          // instead of another round trip just to capture data.
-          connectBtn.disabled = false; connectBtn.textContent = 'Connect Phantom';
-          setStatus(
-            'You\u2019re back from Phantom — tap Connect once more to finish.' +
-            '<br/><br/><b style="font-size:11px;">DIAGNOSTIC — please screenshot this:</b>' +
-            '<br/><span style="word-break:break-all; font-size:10px;">'+ (rawParamsForDiagnostic || '(empty)') +'</span>',
-            'warn'
-          );
-        }
-      }
-      // If action was the sign marker, there's nothing to resume — paid
-      // play will go through the injected provider directly next time it's tapped.
       return;
     }
 
-    // No redirect this load — but if a session already exists (e.g. the
-    // person just refreshed the page), restore the connected UI silently.
-    if(!wallet.pubkey && window.PhantomMobile && PhantomMobile.hasSession()){
-      wallet.pubkey = PhantomMobile.getSessionPublicKey();
-      connectBtn.textContent = 'Connected'; connectBtn.disabled = true;
+    // We're landing back from Phantom. IMPORTANT ORDER: decrypt FIRST.
+    // consumePendingRedirect reads the encrypted payload plus the decryption
+    // key carried in the URL itself (see phantom-mobile.js) — this is the
+    // only path that works when the return lands in a different browser
+    // context (Chrome → Phantom's in-app browser), because no storage
+    // survives that jump. It also strips the URL params itself when done.
+    connectBtn.disabled = true; connectBtn.textContent = 'Finishing connection…';
+    setStatus('Almost there — finishing the connection to Phantom…');
+
+    var result = window.PhantomMobile ? PhantomMobile.consumePendingRedirect('pickabot_sign') : null;
+
+    if(result && result.type === 'connect'){
+      wallet.pubkey = result.publicKey;
+      connectBtn.textContent = 'Connected';
       setStatus('Connected as <span class="addr">'+shortAddr(wallet.pubkey)+'</span><br/>Checking your $OIL balance…');
       checkHolder(wallet.pubkey);
+      return;
     }
+    if(result && result.type === 'signTransaction'){
+      if(!wallet.pubkey && PhantomMobile.hasSession()) wallet.pubkey = PhantomMobile.getSessionPublicKey();
+      resumePaidPlayAfterSign(result.txBytes);
+      return;
+    }
+
+    // Decrypt didn't produce a result (params missing/invalid) or errored.
+    // Bonus path: if this browser happens to have the injected provider
+    // (e.g. Phantom's main browser tab), plain connect works — try briefly.
+    var start = Date.now();
+    var provider = getProvider();
+    while(!provider && Date.now() - start < 3000){
+      await delay(250);
+      provider = getProvider();
+    }
+    if(provider){
+      try{
+        var resp = await provider.connect();
+        wallet.pubkey = resp.publicKey.toString();
+        connectBtn.textContent = 'Connected';
+        setStatus('Connected as <span class="addr">'+shortAddr(wallet.pubkey)+'</span><br/>Checking your $OIL balance…');
+        checkHolder(wallet.pubkey);
+        return;
+      }catch(e){ /* fall through to the failure message below */ }
+    }
+
+    connectBtn.disabled = false; connectBtn.textContent = 'Connect Phantom';
+    var failMsg = (result && result.type === 'error') ? result.message
+      : 'The connection didn\u2019t complete — tap Connect to try again.';
+    setStatus(failMsg + diagnosticHTML(), 'warn');
   })();
 
   // Load the published Bot list (public mint addresses) once at startup.

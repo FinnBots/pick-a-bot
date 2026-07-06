@@ -141,10 +141,16 @@
       if (!decrypted) return { type: 'error', message: 'Could not verify the response from Phantom. Please try connecting again.' };
       var payload = JSON.parse(new TextDecoder().decode(decrypted));
       // Session persists for the life of this tab — needed again for signTransaction.
+      // dappPub is stored because sign requests MUST present the same
+      // dapp_encryption_public_key that connect used — Phantom derives the
+      // shared secret from whatever key is on the request, so sending a
+      // different one makes its response undecryptable.
+      var dappPubForSession = global.nacl.box.keyPair.fromSecretKey(secretKey).publicKey;
       saveJSON('session', {
         session: payload.session,
         publicKey: payload.public_key,
-        sharedSecret: b58enc(sharedSecret)
+        sharedSecret: b58enc(sharedSecret),
+        dappPub: b58enc(dappPubForSession)
       });
       clearKey('connect_kp');
       return { type: 'connect', publicKey: payload.public_key };
@@ -165,19 +171,18 @@
     var encrypted = global.nacl.box.after(
       new TextEncoder().encode(JSON.stringify(payload)), nonce, sharedSecret
     );
-    // Phantom's spec wants a dapp_encryption_public_key on every request.
-    // The shared secret already established at connect time is what's
-    // actually used to encrypt/decrypt (see sharedSecret above) — this
-    // keypair only needs to be syntactically present, so a throwaway one
-    // generated fresh for this request is correct and simplest.
-    var kp = global.nacl.box.keyPair();
+    // CRITICAL: sign requests must present the SAME dapp_encryption_public_key
+    // that connect used. Phantom derives the shared secret from the key on the
+    // request — a different key means its response can never be decrypted.
+    // (Earlier versions sent a random key here; that was a bug.)
+    if (!sess.dappPub) throw new Error('Session is from an older connect — reconnect your wallet first.');
     // Carry the shared secret in the redirect_link too, same reasoning as
     // Connect: if this round-trip also lands in a different storage context
     // than it started in, the response can still be decrypted without it.
     var redirectLink = appUrl + (appUrl.indexOf('?') >= 0 ? '&' : '?') +
       'phantom_action=' + marker + '&dapp_shared=' + encodeURIComponent(sess.sharedSecret);
     var params = new URLSearchParams({
-      dapp_encryption_public_key: b58enc(kp.publicKey),
+      dapp_encryption_public_key: sess.dappPub,
       nonce: b58enc(nonce),
       redirect_link: redirectLink,
       payload: b58enc(encrypted)
