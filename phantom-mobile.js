@@ -38,21 +38,27 @@
 
   var STORAGE_PREFIX = 'fb_phantom_';
   var CLUSTER = 'mainnet-beta';
+  var SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000; // sessions older than 24h are treated as expired
 
   function b58enc(bytes) { return global.bs58.encode(bytes); }
   function b58dec(str) { return new Uint8Array(global.bs58.decode(str)); }
 
+  // localStorage, NOT sessionStorage — deliberately. Phantom's in-app browser
+  // opens every deeplink return in a brand-new tab (confirmed on-device,
+  // 6 July 2026), and sessionStorage is per-tab so it never survives that.
+  // localStorage is shared across all tabs of the same browser, so the
+  // session established in one tab is visible to every subsequent one.
   function saveJSON(key, obj) {
-    try { sessionStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(obj)); } catch (e) {}
+    try { localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(obj)); } catch (e) {}
   }
   function loadJSON(key) {
     try {
-      var v = sessionStorage.getItem(STORAGE_PREFIX + key);
+      var v = localStorage.getItem(STORAGE_PREFIX + key);
       return v ? JSON.parse(v) : null;
     } catch (e) { return null; }
   }
   function clearKey(key) {
-    try { sessionStorage.removeItem(STORAGE_PREFIX + key); } catch (e) {}
+    try { localStorage.removeItem(STORAGE_PREFIX + key); } catch (e) {}
   }
 
   function isMobile() {
@@ -150,7 +156,8 @@
         session: payload.session,
         publicKey: payload.public_key,
         sharedSecret: b58enc(sharedSecret),
-        dappPub: b58enc(dappPubForSession)
+        dappPub: b58enc(dappPubForSession),
+        createdAt: Date.now()
       });
       clearKey('connect_kp');
       return { type: 'connect', publicKey: payload.public_key };
@@ -239,7 +246,14 @@
 
   function hasSession() {
     var s = loadJSON('session');
-    return !!(s && s.publicKey);
+    if (!s || !s.publicKey) return false;
+    // Persistent storage can outlive the session's real validity — treat
+    // anything older than 24h as expired and self-clean.
+    if (s.createdAt && (Date.now() - s.createdAt) > SESSION_MAX_AGE_MS) {
+      clearSession();
+      return false;
+    }
+    return true;
   }
   function getSessionPublicKey() {
     var s = loadJSON('session');

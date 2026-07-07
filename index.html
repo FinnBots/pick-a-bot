@@ -382,9 +382,9 @@
 <!-- ?v= query strings are cache-busters: bump them in lockstep with BUILD_TAG on
      every deploy so no browser (Chrome, Safari, or Phantom's webview) can ever
      silently run a stale copy of these files again. -->
-<script src="phantom-deeplink-libs.min.js?v=20260706b"></script>
-<script src="phantom-mobile.js?v=20260706b"></script>
-<script src="solana-web3.iife.min.js?v=20260706b"></script>
+<script src="phantom-deeplink-libs.min.js?v=20260706c"></script>
+<script src="phantom-mobile.js?v=20260706c"></script>
+<script src="solana-web3.iife.min.js?v=20260706c"></script>
 <script>
 (function(){
   "use strict";
@@ -625,13 +625,29 @@
   connectBtn.addEventListener('click', async function(){
     var provider = getProvider();
     if(!provider){
-      // No injected provider — this is expected on Chrome/Edge on iOS (Phantom only
-      // injects into Safari-with-extension or its own in-app browser). On mobile,
-      // fall back to Phantom's official deeplink flow instead of failing outright.
+      // No injected provider — expected on Chrome/Edge on iOS (Phantom only
+      // injects into Safari-with-extension or its own in-app browser).
       if(window.PhantomMobile && PhantomMobile.isMobile()){
+        var inBrowseAlready = new URLSearchParams(window.location.search).get('src') === 'browse';
+        if(!inBrowseAlready){
+          // FRONT DOOR (v9): Phantom's "browse" deeplink opens this page INSIDE
+          // Phantom's own browser, where window.solana IS injected — so Connect
+          // and payment become in-place popups and the whole game runs in one
+          // tab. Far better UX than the redirect round-trips (3 tabs/round).
+          connectBtn.disabled = true;
+          connectBtn.textContent = 'Opening in Phantom…';
+          setStatus('Opening this game inside Phantom\u2019s browser — everything runs in one place there.');
+          var target = window.location.origin + window.location.pathname + '?src=browse';
+          window.location.href = 'https://phantom.app/ul/browse/' +
+            encodeURIComponent(target) + '?ref=' + encodeURIComponent(window.location.origin);
+          return;
+        }
+        // Already inside Phantom's browser via the browse link but STILL no
+        // provider (some webviews don't inject) — fall back to the proven
+        // encrypted redirect flow. Works everywhere, just less slick.
         connectBtn.disabled = true;
         connectBtn.textContent = 'Opening Phantom…';
-        setStatus('Opening Phantom — approve the connection, then you’ll come straight back here.');
+        setStatus('Opening Phantom — approve the connection, then you\u2019ll come straight back here.');
         PhantomMobile.connect(window.location.origin + window.location.pathname);
         return;
       }
@@ -659,15 +675,15 @@
   // as query params on this same URL; PhantomMobile decrypts whichever one
   // is present (if any) and tells us which.
   var PENDING_PLAY_KEY = 'fb_pickabot_pending_play';
-  function savePendingPlay(obj){ try{ sessionStorage.setItem(PENDING_PLAY_KEY, JSON.stringify(obj)); }catch(e){} }
-  function loadPendingPlay(){ try{ var v = sessionStorage.getItem(PENDING_PLAY_KEY); return v ? JSON.parse(v) : null; }catch(e){ return null; } }
-  function clearPendingPlay(){ try{ sessionStorage.removeItem(PENDING_PLAY_KEY); }catch(e){} }
+  function savePendingPlay(obj){ try{ localStorage.setItem(PENDING_PLAY_KEY, JSON.stringify(obj)); }catch(e){} }
+  function loadPendingPlay(){ try{ var v = localStorage.getItem(PENDING_PLAY_KEY); return v ? JSON.parse(v) : null; }catch(e){ return null; } }
+  function clearPendingPlay(){ try{ localStorage.removeItem(PENDING_PLAY_KEY); }catch(e){} }
 
   // Build tag — bump on every deploy. Lets us verify at a glance, on-device,
   // which version is actually running (stale iOS/Phantom webview caches served
   // old builds repeatedly during the 5 July debugging session and disguised
   // themselves as code failures).
-  var BUILD_TAG = 'v8-20260706b';
+  var BUILD_TAG = 'v9-20260706c';
   console.log('[pick-a-bot] build', BUILD_TAG);
 
   (async function resumePhantomState(){
@@ -968,6 +984,10 @@
       return;
     }
     picked = stored.picked;
+    if(!wallet.pubkey && stored.owner) wallet.pubkey = stored.owner;
+    // Restore the connected UI in this (new) tab so the game is fully
+    // re-armed after the round — Play again must work without a refresh.
+    connectBtn.textContent = 'Connected'; connectBtn.disabled = true;
     busy = true;
     playPaidBtn.disabled = true;
     playBtn.disabled = true;
@@ -986,6 +1006,11 @@
       clearPendingPlay();
       stage.innerHTML = '';
       runSweepThenReveal(draw, { paid:true, signature: rawSig });
+      // Re-check balance + Bot holding in the background so the paid button,
+      // multiplier note, and $OIL figure are all live again the moment the
+      // player taps Play again — no refresh needed. (Updates walletStatus
+      // only; doesn't touch the result card.)
+      if(wallet.pubkey) checkHolder(wallet.pubkey);
     }catch(e){
       busy = false;
       playPaidBtn.disabled = false;
@@ -994,6 +1019,7 @@
       var msg = (e instanceof PayError) ? e.userMessage
         : 'Something went wrong sending the payment after returning from Phantom. No confirmed charge means nothing was taken — check your wallet activity before trying again.';
       setStatus('Connected as <span class="addr">'+shortAddr(wallet.pubkey || stored.owner)+'</span><br/>'+msg, 'warn');
+      if(wallet.pubkey) checkHolder(wallet.pubkey);
     }
   }
 
