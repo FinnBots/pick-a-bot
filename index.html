@@ -1215,11 +1215,49 @@ body:not(.mode-paid) .app .facts{ display:block !important; }
     });
   }
 
-  // The draw is derived from the transaction's own signature — fixed the instant it's signed,
-  // unknowable in advance, and independently recomputable by anyone from the public signature.
-  async function sigToDraw(sigBytes){
-    var digest = await crypto.subtle.digest('SHA-256', sigBytes);
-    return new Uint8Array(digest)[0] % 10;
+  // The draw (security audit F24, 2026-10-21): the blockhash of the first finalized block at least
+  // DRAW_SLOT_OFFSET slots AFTER your entry landed, hashed with your entry's signature. That block does
+  // not exist when you sign, so nobody (not even a script holding its own key) can know the draw in
+  // advance. Anyone can recompute it from the public chain; the prize scanner does exactly this.
+  var DRAW_SLOT_OFFSET = 2;
+  function rpcRaw(method, params){
+    return fetch(CFG.RPC, { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ jsonrpc:'2.0', id:1, method:method, params:params }) })
+      .then(function(r){ return r.json(); });
+  }
+  async function futureBlockHash(entrySlot, timeoutMs){
+    var slot = entrySlot + DRAW_SLOT_OFFSET, start = Date.now(), hops = 0;
+    while(Date.now() - start < timeoutMs){
+      var j = await rpcRaw('getBlock', [slot, { commitment:'finalized', transactionDetails:'none', rewards:false, maxSupportedTransactionVersion:0 }]);
+      if(j.result && j.result.blockhash) return j.result.blockhash;
+      var code = j.error && j.error.code;
+      if(code === -32007 || code === -32009){ slot++; if(++hops > 64) break; continue; }   // skipped slot: no block there
+      await delay(1500);                                                                     // not finalized yet
+    }
+    return null;
+  }
+  async function futureDraw(sigBytes, blockhash){
+    var bh = new solanaWeb3.PublicKey(blockhash).toBytes(), buf = new Uint8Array(bh.length + sigBytes.length);
+    buf.set(bh, 0); buf.set(sigBytes, bh.length);
+    var digest = await crypto.subtle.digest('SHA-256', buf);
+    return new DataView(digest).getUint32(0) % 10;
+  }
+  async function finalizedSlot(signature, timeoutMs){       // the slot the scanner will see: the FINALIZED one
+    var start = Date.now();
+    while(Date.now() - start < timeoutMs){
+      var j = await rpcRaw('getSignatureStatuses', [[signature]]);
+      var st = j.result && j.result.value && j.result.value[0];
+      if(st && st.confirmationStatus === 'finalized' && typeof st.slot === 'number') return st.slot;
+      await delay(1500);
+    }
+    return null;
+  }
+  async function drawAfter(signature, sigBytes){
+    setStatus('Entry confirmed — the machine is waiting for the next blocks on the chain to draw your Bot…');
+    var entrySlot = await finalizedSlot(signature, 90000);
+    var bh = entrySlot === null ? null : await futureBlockHash(entrySlot, 90000);
+    if(!bh) throw new PayError('Your entry is in (it counts), but the chain was slow to settle the draw. The scanner draws it the same way — any prize arrives with the next payout.');
+    return futureDraw(sigBytes, bh);
   }
 
   // Poll (not websocket-dependent — the proxy only allows plain POST RPC calls).
@@ -1274,7 +1312,7 @@ body:not(.mode-paid) .app .facts{ display:block !important; }
       var ok = await confirmSignature(connection, rawSig, 30000);
       if(!ok) throw new PayError('Payment sent but confirmation is taking longer than expected. Signature: '+rawSig+'. Do not pay again — check this signature before retrying.');
 
-      var draw = await sigToDraw(deserialized.signature);
+      var draw = await drawAfter(rawSig, deserialized.signature);
       clearPendingPlay();
       stage.innerHTML = '';
       runSweepThenReveal(draw, { paid:true, signature: rawSig });
@@ -1364,7 +1402,7 @@ body:not(.mode-paid) .app .facts{ display:block !important; }
       var ok = await confirmSignature(connection, rawSig, 30000);
       if(!ok) throw new PayError('Payment sent but confirmation is taking longer than expected. Signature: '+rawSig+'. Do not pay again — check this signature before retrying.');
 
-      var draw = await sigToDraw(signed.signature);
+      var draw = await drawAfter(rawSig, signed.signature);
       stage.innerHTML = '';
       runSweepThenReveal(draw, { paid:true, signature: rawSig });
 
