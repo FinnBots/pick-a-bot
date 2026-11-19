@@ -1,0 +1,1708 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8" />
+<meta http-equiv="Content-Security-Policy" id="fb-csp" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; font-src 'self' data: https://finnstergram.com; img-src 'self' data: blob: https://arweave.net https://*.arweave.net https://finnstergram.com; connect-src 'self' https://finnbots-rpc.mart-kin1000.workers.dev http://127.0.0.1:8899 https://cloudflareinsights.com https://finnbots-events.mart-kin1000.workers.dev https://finnbots.github.io; media-src 'self' data: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-src 'none'; manifest-src 'self'">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>FinnBots — Pick-a-Bot</title>
+<style id="fb-fonts">
+/* fb-fonts — the FinnBots lettering, served by finnstergram.com itself (2026-10-28).
+   GENERATED into every game page by apply-fonts.js; never hand-edit a game's copy.
+   Until 10-28 every game pulled these two fonts from Google Fonts, which handed each player's IP
+   address to Google before the game started. The site already self-hosts the same files
+   (website/site/assets/fonts, both SIL OFL, latin subset) and GitHub Pages serves them with
+   Access-Control-Allow-Origin: *, so a game on any *.finnstergram.com host can load them. */
+@font-face { font-family: 'Jersey 15'; font-style: normal; font-weight: 400; font-display: swap;
+  src: url(https://finnstergram.com/assets/fonts/jersey15-latin.woff2) format('woff2'); }
+@font-face { font-family: 'Plus Jakarta Sans'; font-style: normal; font-weight: 400 800; font-display: swap;
+  src: url(https://finnstergram.com/assets/fonts/plus-jakarta-sans-latin.woff2) format('woff2'); }
+</style>
+<style>
+  /* ---------- Tokens (Brand Standards v3 — game skin, one-page layout) ---------- */
+  :root{
+    --plum:#5f4c57;
+    --plum-deep:#3e323a;
+    --bg-soft:#fdf3e7;
+    --card:#fffaf3;
+    --ink:#2a2230;
+    --muted:#6e6470;
+    --electric:#3a6ff7;
+    --amber:#f2a03d;
+    --line:rgba(95,76,87,0.16);
+    --shadow-sm:0 1px 3px rgba(42,34,48,0.10);
+    --shadow-md:0 6px 18px rgba(42,34,48,0.12);
+    --shadow-lg:0 14px 34px rgba(42,34,48,0.22);
+    --r-sm:8px; --r-md:10px; --r-lg:16px; --r-xl:20px; --r-pill:9999px;
+    --spring:cubic-bezier(.34,1.56,.64,1);
+    --smooth:cubic-bezier(.4,0,.2,1);
+    --font-display:'Jersey 15', ui-monospace, monospace;
+    --font-body:'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    /* Brand Standards rotating background palette, one per tile */
+    --swatch-0:#f5f0a0; --swatch-1:#f07cc0; --swatch-2:#a0e8f0;
+    --swatch-3:#f5c8a0; --swatch-4:#a0f0c0; --swatch-5:#f5a090;
+    --swatch-6:#f5f0a0; --swatch-7:#f07cc0; --swatch-8:#a0e8f0; --swatch-9:#a0f0c0;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg-soft:#221b20; --card:#2f2730; --ink:#f4eef2; --muted:#b9aab3;
+      --line:rgba(255,255,255,0.12);
+      --shadow-md:0 6px 18px rgba(0,0,0,0.42);
+      --shadow-lg:0 14px 34px rgba(0,0,0,0.55);
+    }
+  }
+
+  *{box-sizing:border-box;}
+  html,body{height:100%; margin:0;}
+  /* The whole game fits one viewport — no page scroll, ever. */
+  html{ overflow:hidden; }
+  body{
+    font-family:var(--font-body);
+    background:var(--bg-soft);
+    color:var(--ink);
+    line-height:1.3;
+    -webkit-font-smoothing:antialiased;
+    display:flex; justify-content:center;
+    overflow:hidden;
+    height:100vh; height:100dvh;
+    padding: max(8px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  }
+  .wrap{
+    width:100%; max-width:min(960px, 96vw);
+    height:100%;
+    display:flex; flex-direction:column;
+    gap: clamp(6px, 1.4dvh, 12px);
+  }
+
+  /* ---------- Top bar: eyebrow + title + info button, one line ---------- */
+  .topbar{
+    flex:0 0 auto; display:flex; align-items:center; gap:8px;
+    background:var(--card); border-radius:var(--r-lg);
+    padding:10px 14px; box-shadow:var(--shadow-sm);
+  }
+  .eyebrow{
+    font-family:var(--font-display); font-size:clamp(9px,1.1vw,13px); letter-spacing:.5px;
+    color:var(--plum); background:rgba(95,76,87,0.10);
+    padding:6px 10px; border-radius:var(--r-pill); flex:0 0 auto; white-space:nowrap;
+  }
+  @media (prefers-color-scheme: dark){ .eyebrow{ color:#d9c7d1; background:rgba(255,255,255,0.07);} }
+  h1{
+    font-family:var(--font-display);
+    font-size:clamp(16px,2.6vw,32px);
+    margin:0; color:var(--ink); flex:1 1 auto; min-width:0;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .infobtn{
+    flex:0 0 auto; appearance:none; border:none; cursor:pointer;
+    width:clamp(28px,3vw,38px); height:clamp(28px,3vw,38px); border-radius:50%;
+    background:var(--bg-soft); color:var(--plum); box-shadow:var(--shadow-sm);
+    font-family:var(--font-display); font-size:clamp(12px,1.4vw,16px);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .infobtn:hover{ box-shadow:var(--shadow-md); }
+  .infobtn:focus-visible, .connect-btn:focus-visible, .play:focus-visible, .again:focus-visible, .retry-btn:focus-visible{
+    outline:3px solid var(--electric); outline-offset:2px;
+  }
+
+  .test-banner{
+    flex:0 0 auto;
+    background:#c0392b; color:#fff; font-family:var(--font-display);
+    font-size:clamp(10px,1.3vw,14px); text-align:center; padding:9px 12px;
+    border-radius:var(--r-sm); line-height:1.6;
+  }
+  .test-banner b{ display:block; font-size:clamp(11px,1.5vw,16px); margin-bottom:2px; }
+
+  /* ---------- Quick-facts strip: odds/cost/payout, always visible ---------- */
+  .quickfacts{
+    flex:0 0 auto;
+    background:var(--card); border-radius:var(--r-md);
+    padding:10px 14px; box-shadow:var(--shadow-sm);
+  }
+  .quickfacts p{
+    margin:0; font-size:clamp(12px,1.5vw,17px); color:var(--muted); line-height:1.4;
+    text-align:center;
+  }
+  .quickfacts b{ color:var(--ink); font-weight:600; }
+
+  /* ---------- Wallet bar: one slim card does connect + status ---------- */
+  .walletbar{
+    flex:0 0 auto;
+    background:var(--plum); color:#fff; border-radius:var(--r-lg);
+    padding:12px 14px; box-shadow:var(--shadow-sm);
+    display:flex; flex-direction:column; gap:8px;
+  }
+  .wb-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .wb-text{ font-size:clamp(12px,1.5vw,17px); line-height:1.35; color:rgba(255,255,255,0.88); flex:1 1 auto; min-width:0; }
+  .connect-btn{
+    appearance:none; border:none; cursor:pointer; flex:0 0 auto;
+    font-family:var(--font-body); font-weight:600; font-size:clamp(13px,1.5vw,17px);
+    background:#fff; color:var(--plum);
+    padding:9px 18px; border-radius:var(--r-sm);
+    transition:transform 150ms var(--smooth), opacity 150ms var(--smooth);
+  }
+  .connect-btn:hover:not(:disabled){ opacity:.92; }
+  .connect-btn:active:not(:disabled){ transform:scale(.98); }
+  .connect-btn:disabled{ opacity:.65; cursor:default; }
+  .wallet-status{
+    font-size:clamp(12px,1.4vw,15px); background:rgba(255,255,255,0.12);
+    padding:8px 10px; border-radius:var(--r-sm); line-height:1.45;
+    max-height:4.6em; overflow-y:auto;
+  }
+  .wallet-status .addr{ font-family:var(--font-display); font-size:clamp(9px,1vw,12px); letter-spacing:.3px; }
+  .wallet-status.ok{ background:rgba(52,199,89,0.24); }
+  .wallet-status.warn{ background:rgba(242,160,61,0.24); }
+  .wallet-status a{ color:#fff; }
+  .retry-btn{
+    appearance:none; border:none; cursor:pointer; font-family:var(--font-body); font-weight:600;
+    font-size:11px; color:var(--plum); background:#fff;
+    padding:4px 9px; border-radius:var(--r-sm); margin:2px 0;
+  }
+  .retry-btn:hover{ opacity:.9; }
+  .retry-btn:active{ transform:scale(.97); }
+
+  /* ---------- Bot line-up: fills the remaining space ---------- */
+  .lineup-wrap{
+    flex:1 1 auto; min-height:0; display:flex; align-items:center; justify-content:center;
+    overflow:hidden; container-type:size; container-name:lineup;
+  }
+  .lineup{
+    width:100%;
+    display:grid; grid-template-columns:repeat(5,1fr); grid-auto-rows:min-content;
+    align-content:center;
+    gap: clamp(4px, 2.2cqh, 22px) clamp(4px, 1.8cqw, 18px);
+  }
+  .tile{
+    appearance:none; border:none; cursor:pointer; min-height:0; min-width:0;
+    width: clamp(48px, min(30cqh, 18.5cqw), 220px); justify-self:center;
+    background:var(--tile-bg, var(--card)); color:var(--ink);
+    border-radius:var(--r-md); padding: 5px 4px 4px;
+    box-shadow:var(--shadow-sm);
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    transition:transform var(--smooth) 160ms, box-shadow var(--smooth) 160ms, outline-color 120ms;
+    outline:2px solid transparent; outline-offset:2px;
+  }
+  .tile .botimg-wrap{
+    width:100%; aspect-ratio:1/1; flex:0 0 auto; border-radius:var(--r-sm);
+    background:rgba(255,255,255,0.55); overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:inset 0 0 0 2px rgba(42,34,48,0.10);
+  }
+  .tile img{ width:100%; height:100%; object-fit:cover; image-rendering:pixelated; display:block; }
+  .img-fallback{
+    display:flex; align-items:center; justify-content:center; width:100%; height:100%;
+    font-family:var(--font-display); font-size:10px; color:var(--plum);
+  }
+  .tile .num{ font-family:var(--font-display); font-size:clamp(10px,1.3vw,15px); color:var(--muted); flex:0 0 auto; }
+  @media (hover:hover){ .tile:hover{ transform:translateY(-2px); box-shadow:var(--shadow-md); } }
+  .tile:focus-visible{ outline-color:var(--electric); }
+  .tile:active{ transform:scale(.97); }
+  .tile[aria-checked="true"]{
+    box-shadow:var(--shadow-lg), inset 0 0 0 3px var(--electric);
+    transform:translateY(-2px);
+  }
+  .tile[aria-checked="true"] .num{ color:var(--electric); }
+  .tile.scanning{ box-shadow:var(--shadow-md), inset 0 0 0 3px var(--amber); transform:translateY(-1px); }
+  .tile.drawn{ box-shadow:var(--shadow-lg), inset 0 0 0 3px var(--amber); transform:translateY(-2px); }
+  .tile:disabled{ cursor:default; }
+
+  /* ---------- Play buttons: pinned to the bottom, slim ---------- */
+  .playbar{ flex:0 0 auto; display:flex; flex-direction:column; gap:6px; }
+  .play{
+    appearance:none; border:none; width:100%; cursor:pointer;
+    font-family:var(--font-display); font-size:clamp(13px,1.6vw,20px); line-height:1.4;
+    color:#fff; background:var(--plum);
+    padding: clamp(11px,1.8dvh,18px) var(--r-lg); border-radius:var(--r-sm);
+    box-shadow:var(--shadow-md);
+    transition:transform 150ms var(--smooth), opacity 150ms var(--smooth), background 150ms;
+  }
+  .play:hover:not(:disabled){ background:var(--plum-deep); }
+  .play:active:not(:disabled){ transform:scale(.98); opacity:.9; }
+  .play:disabled{ background:var(--line); color:var(--muted); box-shadow:none; cursor:not-allowed; }
+
+  footer{ flex:0 0 auto; text-align:center; }
+  footer .tag{ font-family:var(--font-display); font-size:clamp(9px,1.1vw,13px); color:var(--muted); line-height:1.6; margin:0 0 6px; }
+  .marketing-links{ display:flex; justify-content:center; gap:20px; }
+  .marketing-links a{
+    font-family:var(--font-body); font-size:clamp(12px,1.4vw,15px); font-weight:500;
+    color:var(--electric); text-decoration:none;
+    display:inline-flex; align-items:center; gap:2px;
+  }
+  .marketing-links a:hover{ text-decoration:underline; }
+  .marketing-links a:focus-visible{ outline:2px solid var(--electric); outline-offset:2px; border-radius:2px; }
+
+  .hidden{ display:none !important; }
+  .sr-only{
+    position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+    overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
+  }
+
+  /* ---------- Result stage: overlay modal, never pushes page height ---------- */
+  #stage:not(:empty){
+    position:fixed; inset:0; z-index:40;
+    background:rgba(42,34,48,0.55);
+    display:flex; align-items:center; justify-content:center;
+    padding:16px;
+  }
+  .result{
+    width:100%; max-width:440px; max-height:90dvh; overflow-y:auto;
+    background:var(--card); border-radius:var(--r-lg); padding: clamp(16px,3.5dvh,24px);
+    box-shadow:var(--shadow-lg); text-align:center;
+  }
+  .result.win{ box-shadow:var(--shadow-lg), inset 0 0 0 3px var(--amber); }
+  .result h2{
+    font-family:var(--font-display); font-size:14px; line-height:1.5;
+    margin:0 0 10px;
+  }
+  .result.win h2{ color:var(--amber); }
+  .result .detail{ font-size:15px; color:var(--muted); margin:0 0 14px; }
+  .result .prize{
+    display:inline-block; font-family:var(--font-display); font-size:15px;
+    color:var(--amber); background:rgba(242,160,61,0.14);
+    padding:9px 16px; border-radius:var(--r-pill); margin-bottom:14px;
+    line-height:1.4;
+  }
+  .bots-shown{ display:flex; justify-content:center; gap:28px; margin:10px 0; }
+  .bot-show{ display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .bot-show .botimg-wrap{
+    width:64px; height:64px; border-radius:var(--r-sm); overflow:hidden;
+    background:rgba(95,76,87,0.08);
+  }
+  .bot-show img{ width:100%; height:100%; object-fit:cover; image-rendering:pixelated; display:block; }
+  .bot-show .cap{ font-size:12px; color:var(--muted); }
+  .bot-show .cap b{ font-family:var(--font-display); font-size:11px; color:var(--ink); display:block; margin-top:2px; }
+  .again{
+    appearance:none; cursor:pointer; font-family:var(--font-body); font-weight:600; font-size:15px;
+    color:var(--plum); background:transparent; border:2px solid var(--line);
+    padding:9px 20px; border-radius:var(--r-sm); margin-top:4px;
+    transition:border-color 150ms, transform 150ms;
+  }
+  @media (prefers-color-scheme: dark){ .again{ color:#d9c7d1; } }
+  .again:hover{ border-color:var(--plum); }
+  .again:active{ transform:scale(.98); }
+  .upsell{
+    font-size:13px; color:var(--muted); margin-top:14px;
+    padding-top:14px; border-top:1px solid var(--line);
+  }
+  .upsell b{ color:var(--ink); font-weight:600; }
+  .upsell a{ color:var(--electric); font-weight:600; text-decoration:none; display:inline-block; margin-top:4px; }
+  .upsell a:hover{ text-decoration:underline; }
+
+  /* ---------- How this works: modal, opened from the info button ---------- */
+  #howtoModal:not(.hidden){
+    position:fixed; inset:0; z-index:50;
+    background:rgba(42,34,48,0.55);
+    display:flex; align-items:center; justify-content:center; padding:16px;
+  }
+  .howto-card{
+    width:100%; max-width:440px; max-height:85dvh; overflow-y:auto;
+    background:var(--card); border-radius:var(--r-lg); padding:20px;
+    box-shadow:var(--shadow-lg);
+  }
+  .howto-card h2{ font-family:var(--font-display); font-size:13px; margin:0 0 12px; color:var(--ink); }
+  .howto-card p{ font-size:14px; color:var(--muted); line-height:1.55; margin:0 0 10px; }
+  .howto-card b{ color:var(--ink); }
+  .howto-close{
+    appearance:none; border:none; cursor:pointer; width:100%;
+    font-family:var(--font-body); font-weight:600; font-size:14px;
+    background:var(--plum); color:#fff; padding:10px; border-radius:var(--r-sm); margin-top:6px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ transition:none !important; animation:none !important; }
+  }
+  /* Very short viewports (small phones in landscape, split-screen, etc.):
+     trim the caption text and tighten gaps further rather than let anything overflow. */
+  @media (max-height:560px){
+    .tile .num{ display:none; }
+    .wrap{ gap:4px; }
+  }
+</style>
+<style id="fb-brand">
+/* ===== FINNBOTS BRAND LAYER v2 (2026-10-17; v1 2026-09-24) ============
+   Append-only override, injected as <style id="fb-brand"> AFTER every other
+   style block so it wins without editing a single line of a game's own CSS.
+   Three jobs:
+     1. BRAND  — the FinnBots lockup (bot mark + FINN/BOTS wordmark) in the topbar.
+     2. CABINET — the canvas reads as an arcade screen: bezel, amber rim light, glow.
+     3. THEME  — dark-mode parity with the site (finnstergram.com adapts, the
+                 games did not, so hub -> game was a light/dark slap in the face).
+   v3: the PIXEL bot mark is Bot 2969, the main character (full colour, 16x16, outlined)
+   shared with finnstergram.com and the hub, and a NIGHT-MODE SWITCH in the topbar.
+   Section 4 below is written ONCE; apply-brand.js emits it twice — for "the device is
+   dark and the player has not chosen light", and for "the switch says dark" — scoping
+   each selector with :where() so the cascade is exactly what v1's @media block gave.
+   Source of truth: factory/templates/brand-layer.css. Never hand-edit a game copy;
+   change it here and re-run apply-brand.sh. ==================================== */
+:root{
+  --fb-amber:#f2a03d; --fb-plum:#5f4c57; --fb-plum-deep:#3e323a;
+  --fb-screen:#241b28; --fb-bezel:#3e323a; --fb-rim:rgba(242,160,61,.45);
+  --fb-ink:#3e323a; --fb-surface:rgba(255,255,255,.55); --fb-face:#ff4fd8;
+}
+
+/* ---- 1. BRAND LOCKUP --------------------------------------------------- */
+.fb-mark{
+  display:inline-flex; align-items:center; gap:6px; flex:none;
+  text-decoration:none; color:var(--fb-plum); line-height:1;
+  padding:2px 4px; border-radius:999px; -webkit-tap-highlight-color:transparent;
+}
+.fb-mark:hover{ color:var(--fb-plum-deep); }
+.fb-mark:focus-visible{ outline:3px solid var(--electric,#3a6ff7); outline-offset:2px; }
+.fb-bot{ width:24px; height:24px; flex:none; display:block; }
+.fb-word{
+  font-family:var(--disp,'Jersey 15',system-ui,sans-serif);
+  font-size:16px; letter-spacing:.5px; color:currentColor; white-space:nowrap;
+}
+.fb-word i{ font-style:normal; color:var(--fb-amber); }
+/* the night-mode switch: a compact pixel slider, sun <-> moon (hidden until fb-theme runs) */
+.fb-theme{ flex:none; display:inline-flex; align-items:center; padding:0; margin:0 2px; border:0;
+  background:none; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+html:not(.fb-js) .fb-theme{ display:none; }
+.fbt-track{ position:relative; width:46px; height:26px; border-radius:8px; border:2px solid var(--fb-plum-deep);
+  background:linear-gradient(180deg,#ffe3a3,#ffc76b); box-shadow:2px 2px 0 0 var(--fb-plum-deep); overflow:hidden; }
+.fbt-thumb{ position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:5px; background:#fff6dc;
+  border:2px solid var(--fb-plum-deep); display:grid; place-items:center; transition:transform .3s cubic-bezier(.5,1.6,.5,1); }
+.fbt-thumb svg{ width:10px; height:10px; display:block; }
+.fbt-thumb .fbt-moon{ display:none; }
+.fb-theme[aria-checked="true"] .fbt-track{ background:linear-gradient(180deg,#2a2350,#141030); }
+.fb-theme[aria-checked="true"] .fbt-thumb{ transform:translateX(20px); background:#dfe6ff; }
+.fb-theme[aria-checked="true"] .fbt-thumb .fbt-sun{ display:none; }
+.fb-theme[aria-checked="true"] .fbt-thumb .fbt-moon{ display:block; }
+.fb-theme:focus-visible{ outline:3px solid var(--electric,#3a6ff7); outline-offset:2px; border-radius:8px; }
+/* Phones: the topbar also carries the mode pills + icon buttons, so drop the
+   wordmark and keep the bot mark rather than letting the row overflow. */
+@media (max-width:430px){ .fb-word{ display:none; } }
+body.is-portrait .fb-bot{ width:20px; height:20px; }
+
+/* ---- 2. CABINET ------------------------------------------------------- */
+/* Rings are box-shadow spread only: they paint OUTSIDE the box and never take
+   layout, so fitCanvas' letterbox maths is untouched. */
+canvas#game, canvas{
+  border-radius:12px;
+  box-shadow:
+    0 0 0 2px var(--fb-rim),
+    0 0 0 9px var(--fb-bezel),
+    0 0 0 10px rgba(0,0,0,.28),
+    0 16px 34px -8px rgba(62,50,58,.42),
+    0 0 58px -12px rgba(242,160,61,.40);
+}
+/* The surround needs room for the 10px of rings, or they clip at the viewport edge. */
+.surface{ padding:12px 12px !important; }
+body.is-portrait .surface{ padding:10px !important; }
+
+/* ---- 3. BRANDED BACKDROP (light) -------------------------------------- */
+/* Was a flat peach gradient on every game. Now: an amber glow pool behind the
+   cabinet over a faint plum blueprint grid — the FinnBots workshop floor. */
+body{
+  background:
+    radial-gradient(58% 42% at 50% 46%, rgba(242,160,61,.22), rgba(242,160,61,0) 72%),
+    repeating-linear-gradient(0deg,  rgba(95,76,87,.055) 0 1px, transparent 1px 40px),
+    repeating-linear-gradient(90deg, rgba(95,76,87,.055) 0 1px, transparent 1px 40px),
+    radial-gradient(120% 80% at 50% 0%, var(--soft,#fdf3e7), var(--peach,#f5c8a0));
+  background-attachment:fixed;
+}
+
+/* ---- 3b. LAYOUT PARITY --------------------------------------------------
+   Two chrome generations had drifted apart. The 7 newest games carry the mode
+   toggle as a compact pill pair in the topbar and hide the free-mode facts line
+   (the How-To overlay already carries that message) — the chassis' own
+   "game-first layout" rule. 8 older games still paint a full-width amber bar
+   plus a facts row, which looks like a different product and eats two rows of
+   play area. Pure CSS, no DOM change: `.wrap > .modebar` matches ONLY the
+   separate-row generation, because in the newer games the modebar sits inside
+   <header class="topbar"> and is therefore not a direct child of .wrap. */
+.wrap > .modebar{ align-self:center; width:auto; max-width:100%; }
+.wrap > .modebar .modepill{ flex:0 0 auto; font-size:12.5px; padding:4px 14px; }
+body:not(.mode-paid) .facts{ display:none; }
+/* Mr Bot EXEMPTION (Founder call, 2026-09-24). Every other game's free-mode line is
+   the same boilerplate ("Free to play · wallet-free · pays nothing"), which the How-To
+   overlay already says — so hiding it costs nothing. Mr Bot's carries GAMEPLAY hints
+   ("fetch the 3 parts · spray OIL to stun"), so hiding it loses information. `.app` is
+   Mr Bot's own wrapper and appears in no other game (checked across the roster); its
+   .facts declares no display of its own, so block is the original value.
+   `!important` is REQUIRED, not defensive: Mr Bot's OWN #pv-optimise block (2026-09-22
+   portrait pass) already carried `body:not(.mode-paid) .facts{display:none!important}` —
+   so that line had been hidden since long before the brand layer existed, and only an
+   !important at higher specificity can bring it back. */
+body:not(.mode-paid) .app .facts{ display:block !important; }
+
+/* ---- 4. DARK THEME — parity with the hub ------------------------------ */
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --fb-ink:#f4eef2; --fb-surface:rgba(255,255,255,.075); --soft:#2f2730; --peach:#221b20; --ink:#f4eef2; --plum-deep:#f4eef2; --muted:#b9aab3; }
+  :where(:root:not([data-theme="light"])) body{ color:#f4eef2; background: radial-gradient(58% 42% at 50% 46%, rgba(242,160,61,.13), rgba(242,160,61,0) 72%), repeating-linear-gradient(0deg, rgba(255,255,255,.035) 0 1px, transparent 1px 40px), repeating-linear-gradient(90deg, rgba(255,255,255,.035) 0 1px, transparent 1px 40px), radial-gradient(120% 90% at 50% 0%, #261e2b, #17121a); background-attachment:fixed; }
+  :where(:root:not([data-theme="light"])) .fb-mark{ color:#e3c9d8; }
+  :where(:root:not([data-theme="light"])) .fbt-track, :where(:root:not([data-theme="light"])) .fbt-thumb{ border-color:#6b5662; }
+  :where(:root:not([data-theme="light"])) .fbt-track{ box-shadow:2px 2px 0 0 #6b5662; }
+  :where(:root:not([data-theme="light"])) .fb-mark:hover{ color:#fff; }
+  :where(:root:not([data-theme="light"])) .title{ color:#f4eef2; }
+  :where(:root:not([data-theme="light"])) .pill{ background:rgba(255,255,255,.12); color:#f4eef2; }
+  :where(:root:not([data-theme="light"])) .iconbtn{ background:rgba(255,255,255,.12); color:#f4eef2; box-shadow:none; }
+  :where(:root:not([data-theme="light"])) .modebar{ background:rgba(255,255,255,.075); box-shadow:none; }
+  :where(:root:not([data-theme="light"])) .modepill{ color:#b9aab3; }
+  :where(:root:not([data-theme="light"])) .modepill.active{ background:var(--fb-amber); color:#3a2a12; }
+  :where(:root:not([data-theme="light"])) .hud{ background:rgba(255,255,255,.075); color:#f4eef2; box-shadow:none; }
+  :where(:root:not([data-theme="light"])) .hud .lab{ color:#b9aab3; }
+  :where(:root:not([data-theme="light"])) .facts, :where(:root:not([data-theme="light"])) .walletbar{ background:rgba(255,255,255,.075); color:#f4eef2; box-shadow:none; }
+  :where(:root:not([data-theme="light"])) .facts{ color:#e6dce2; }
+  :where(:root:not([data-theme="light"])) .walletrow .lbl{ color:#e6dce2; }
+  :where(:root:not([data-theme="light"])) .wallet-status{ color:#b9aab3; }
+  :where(:root:not([data-theme="light"])) .wallet-status.ok{ color:#f4eef2; }
+  :where(:root:not([data-theme="light"])) .ctl{ background:rgba(255,255,255,.13); color:#f4eef2; box-shadow:none; }
+  :where(:root:not([data-theme="light"])) .ctl:active, :where(:root:not([data-theme="light"])) .ctl.on{ background:var(--fb-amber); color:#3a2a12; }
+  :where(:root:not([data-theme="light"])) .ctl.fire{ background:#6d5765; color:#fff; }
+  :where(:root:not([data-theme="light"])) .ctl.fire:active, :where(:root:not([data-theme="light"])) .ctl.fire.on{ background:var(--fb-amber); color:#3a2a12; }
+  :where(:root:not([data-theme="light"])) .card, :where(:root:not([data-theme="light"])) .panel{ background:#2f2730; color:#f4eef2; }
+  :where(:root:not([data-theme="light"])) .card h2, :where(:root:not([data-theme="light"])) .panel h2, :where(:root:not([data-theme="light"])) .card .big{ color:#f4eef2; }
+  :where(:root:not([data-theme="light"])) .card p, :where(:root:not([data-theme="light"])) .panel p, :where(:root:not([data-theme="light"])) .rules li{ color:#e6dce2; }
+  :where(:root:not([data-theme="light"])) .safe{ color:#b9aab3; }
+  :where(:root:not([data-theme="light"])) .lnks a{ color:var(--fb-amber); }
+  :where(:root:not([data-theme="light"])) .btn{ background:rgba(255,255,255,.14); color:#f4eef2; }
+  :where(:root:not([data-theme="light"])) .btn:hover{ background:rgba(255,255,255,.22); }
+  :where(:root:not([data-theme="light"])) .panel .ghostbtn{ color:#f4eef2; border-color:rgba(255,255,255,.22); }
+  :where(:root:not([data-theme="light"])) .controls{ background:rgba(255,255,255,.06); box-shadow:none; }
+  :where(:root:not([data-theme="light"])) .actbtn{ background:rgba(255,255,255,.13); color:#f4eef2; box-shadow:none; }
+  :where(:root:not([data-theme="light"])) .actbtn.next{ background:#6d5765; color:#fff; }
+  :where(:root:not([data-theme="light"])) .actbtn.next:disabled{ background:rgba(255,255,255,.06); color:#8c7f88; }
+  :where(:root:not([data-theme="light"])) .stickpad{ background:rgba(255,255,255,.10); }
+  :where(:root:not([data-theme="light"])) .ctl.thrbtn{ background:rgba(255,255,255,.13); color:#f4eef2; }
+  :where(:root:not([data-theme="light"])) .app .status{ background:rgba(255,255,255,.075); color:#c8bcc4; }
+  :where(:root:not([data-theme="light"])) .app .footer{ background:transparent; }
+  :where(:root:not([data-theme="light"])) .app .footer .tag{ color:var(--fb-amber); }
+  :where(:root:not([data-theme="light"])) .app .footer a{ color:#b9aab3; }
+  :where(:root:not([data-theme="light"])) .app .pad button, :where(:root:not([data-theme="light"])) .app .up, :where(:root:not([data-theme="light"])) .app .left, :where(:root:not([data-theme="light"])) .app .down, :where(:root:not([data-theme="light"])) .app .right{ background:rgba(255,255,255,.13); color:#f4eef2; box-shadow:none; }
+  :where(:root:not([data-theme="light"])) canvas#game, :where(:root:not([data-theme="light"])) canvas{ box-shadow: 0 0 0 2px rgba(242,160,61,.5), 0 0 0 9px #161119, 0 0 0 10px rgba(0,0,0,.5), 0 16px 34px -8px rgba(0,0,0,.6), 0 0 64px -10px rgba(242,160,61,.32); }
+}
+/* the night-mode switch says dark (templates/theme-switch.js sets html[data-theme]) */
+  :root[data-theme="dark"]{ --fb-ink:#f4eef2; --fb-surface:rgba(255,255,255,.075); --soft:#2f2730; --peach:#221b20; --ink:#f4eef2; --plum-deep:#f4eef2; --muted:#b9aab3; }
+  :where(:root[data-theme="dark"]) body{ color:#f4eef2; background: radial-gradient(58% 42% at 50% 46%, rgba(242,160,61,.13), rgba(242,160,61,0) 72%), repeating-linear-gradient(0deg, rgba(255,255,255,.035) 0 1px, transparent 1px 40px), repeating-linear-gradient(90deg, rgba(255,255,255,.035) 0 1px, transparent 1px 40px), radial-gradient(120% 90% at 50% 0%, #261e2b, #17121a); background-attachment:fixed; }
+  :where(:root[data-theme="dark"]) .fb-mark{ color:#e3c9d8; }
+  :where(:root[data-theme="dark"]) .fbt-track, :where(:root[data-theme="dark"]) .fbt-thumb{ border-color:#6b5662; }
+  :where(:root[data-theme="dark"]) .fbt-track{ box-shadow:2px 2px 0 0 #6b5662; }
+  :where(:root[data-theme="dark"]) .fb-mark:hover{ color:#fff; }
+  :where(:root[data-theme="dark"]) .title{ color:#f4eef2; }
+  :where(:root[data-theme="dark"]) .pill{ background:rgba(255,255,255,.12); color:#f4eef2; }
+  :where(:root[data-theme="dark"]) .iconbtn{ background:rgba(255,255,255,.12); color:#f4eef2; box-shadow:none; }
+  :where(:root[data-theme="dark"]) .modebar{ background:rgba(255,255,255,.075); box-shadow:none; }
+  :where(:root[data-theme="dark"]) .modepill{ color:#b9aab3; }
+  :where(:root[data-theme="dark"]) .modepill.active{ background:var(--fb-amber); color:#3a2a12; }
+  :where(:root[data-theme="dark"]) .hud{ background:rgba(255,255,255,.075); color:#f4eef2; box-shadow:none; }
+  :where(:root[data-theme="dark"]) .hud .lab{ color:#b9aab3; }
+  :where(:root[data-theme="dark"]) .facts, :where(:root[data-theme="dark"]) .walletbar{ background:rgba(255,255,255,.075); color:#f4eef2; box-shadow:none; }
+  :where(:root[data-theme="dark"]) .facts{ color:#e6dce2; }
+  :where(:root[data-theme="dark"]) .walletrow .lbl{ color:#e6dce2; }
+  :where(:root[data-theme="dark"]) .wallet-status{ color:#b9aab3; }
+  :where(:root[data-theme="dark"]) .wallet-status.ok{ color:#f4eef2; }
+  :where(:root[data-theme="dark"]) .ctl{ background:rgba(255,255,255,.13); color:#f4eef2; box-shadow:none; }
+  :where(:root[data-theme="dark"]) .ctl:active, :where(:root[data-theme="dark"]) .ctl.on{ background:var(--fb-amber); color:#3a2a12; }
+  :where(:root[data-theme="dark"]) .ctl.fire{ background:#6d5765; color:#fff; }
+  :where(:root[data-theme="dark"]) .ctl.fire:active, :where(:root[data-theme="dark"]) .ctl.fire.on{ background:var(--fb-amber); color:#3a2a12; }
+  :where(:root[data-theme="dark"]) .card, :where(:root[data-theme="dark"]) .panel{ background:#2f2730; color:#f4eef2; }
+  :where(:root[data-theme="dark"]) .card h2, :where(:root[data-theme="dark"]) .panel h2, :where(:root[data-theme="dark"]) .card .big{ color:#f4eef2; }
+  :where(:root[data-theme="dark"]) .card p, :where(:root[data-theme="dark"]) .panel p, :where(:root[data-theme="dark"]) .rules li{ color:#e6dce2; }
+  :where(:root[data-theme="dark"]) .safe{ color:#b9aab3; }
+  :where(:root[data-theme="dark"]) .lnks a{ color:var(--fb-amber); }
+  :where(:root[data-theme="dark"]) .btn{ background:rgba(255,255,255,.14); color:#f4eef2; }
+  :where(:root[data-theme="dark"]) .btn:hover{ background:rgba(255,255,255,.22); }
+  :where(:root[data-theme="dark"]) .panel .ghostbtn{ color:#f4eef2; border-color:rgba(255,255,255,.22); }
+  :where(:root[data-theme="dark"]) .controls{ background:rgba(255,255,255,.06); box-shadow:none; }
+  :where(:root[data-theme="dark"]) .actbtn{ background:rgba(255,255,255,.13); color:#f4eef2; box-shadow:none; }
+  :where(:root[data-theme="dark"]) .actbtn.next{ background:#6d5765; color:#fff; }
+  :where(:root[data-theme="dark"]) .actbtn.next:disabled{ background:rgba(255,255,255,.06); color:#8c7f88; }
+  :where(:root[data-theme="dark"]) .stickpad{ background:rgba(255,255,255,.10); }
+  :where(:root[data-theme="dark"]) .ctl.thrbtn{ background:rgba(255,255,255,.13); color:#f4eef2; }
+  :where(:root[data-theme="dark"]) .app .status{ background:rgba(255,255,255,.075); color:#c8bcc4; }
+  :where(:root[data-theme="dark"]) .app .footer{ background:transparent; }
+  :where(:root[data-theme="dark"]) .app .footer .tag{ color:var(--fb-amber); }
+  :where(:root[data-theme="dark"]) .app .footer a{ color:#b9aab3; }
+  :where(:root[data-theme="dark"]) .app .pad button, :where(:root[data-theme="dark"]) .app .up, :where(:root[data-theme="dark"]) .app .left, :where(:root[data-theme="dark"]) .app .down, :where(:root[data-theme="dark"]) .app .right{ background:rgba(255,255,255,.13); color:#f4eef2; box-shadow:none; }
+  :where(:root[data-theme="dark"]) canvas#game, :where(:root[data-theme="dark"]) canvas{ box-shadow: 0 0 0 2px rgba(242,160,61,.5), 0 0 0 9px #161119, 0 0 0 10px rgba(0,0,0,.5), 0 16px 34px -8px rgba(0,0,0,.6), 0 0 64px -10px rgba(242,160,61,.32); }
+
+
+/* the game's OWN palette, pinned to the night switch (apply-brand.js gamePins) */
+:root[data-theme="light"]{ --bg-soft:#fdf3e7; --card:#fffaf3; --ink:#2a2230; --muted:#6e6470; --line:rgba(95,76,87,0.16); --shadow-md:0 6px 18px rgba(42,34,48,0.12); --shadow-lg:0 14px 34px rgba(42,34,48,0.22); }
+:root[data-theme="dark"]{ --bg-soft:#221b20; --card:#2f2730; --ink:#f4eef2; --muted:#b9aab3; --line:rgba(255,255,255,0.12); --shadow-md:0 6px 18px rgba(0,0,0,0.42); --shadow-lg:0 14px 34px rgba(0,0,0,0.55); }
+</style>
+<script id="fb-theme">
+/* FINNBOTS NIGHT MODE v2 (2026-10-17) — injected as the fb-theme script at the END of <head>,
+   so the saved choice is on <html> before the first paint (no light flash in night mode).
+   Source of truth: factory/templates/theme-switch.js; applied by apply-brand.js; verify-game
+   pins every game's copy to this file byte for byte. Never hand-edit a game's copy.
+   The device's own light/dark setting applies until the player flips the switch. v2: the choice is
+   SHARED — one cookie 'fb-theme' on .finnstergram.com, so night mode set on finnstergram.com carries
+   into every game and back (Founder: "if in night mode this need to carry through to games"). The
+   cookie holds only 'light' or 'dark'; localStorage stays as a fallback (old per-game choice, or a
+   browser that refuses the cookie). Re-read when the tab is shown again, so a choice made in another
+   tab follows the player back. The SAME rule lives in website/scripts/apply-layout.py + site.js.
+   Without this script the switch stays hidden and
+   the device setting still applies — the brand layer's dark theme does not depend on it.
+   FIT: many topbars are exactly full on a phone, so the switch must never push a game control
+   off-screen (it did, on 15 games, in the first pilot). After layout it shows each switch,
+   measures its bar, and hides the switch on THIS screen if the bar now overflows; re-checked
+   on resize. Where it is hidden, the device's own light/dark setting still applies. */
+(function(){
+  var root=document.documentElement, KEY='fb-theme';
+  root.classList.add('fb-js');
+  function saved(){
+    var m=/(?:^|;\s*)fb-theme=(light|dark)(?:;|$)/.exec(document.cookie||''); if(m) return m[1];
+    try{ var t=localStorage.getItem(KEY); if(t==='light'||t==='dark') return t; }catch(e){}
+    return null;
+  }
+  function save(v){
+    var d=/(^|\.)finnstergram\.com$/.test(location.hostname) ? '; Domain=finnstergram.com' : '';
+    document.cookie=KEY+'='+v+'; Path=/; Max-Age=31536000; SameSite=Lax'+d+(location.protocol==='https:' ? '; Secure' : '');
+    try{ localStorage.setItem(KEY, v); }catch(e){}
+  }
+  function apply(){ var t=saved(); if(t) root.setAttribute('data-theme',t); }
+  apply();
+  var mq=window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+  function effective(){ return root.getAttribute('data-theme') || (mq && mq.matches ? 'dark' : 'light'); }
+  function paint(){
+    var dark=effective()==='dark', b=document.querySelectorAll('.fb-theme');
+    for(var i=0;i<b.length;i++){ b[i].setAttribute('aria-checked', dark?'true':'false'); b[i].title = dark ? 'Switch to day mode' : 'Switch to night mode'; }
+  }
+  function fit(){
+    var b=document.querySelectorAll('.fb-theme');
+    for(var i=0;i<b.length;i++){
+      var bar=b[i].parentElement; b[i].style.display='';
+      if(bar && bar.scrollWidth > bar.clientWidth + 1) b[i].style.display='none';
+    }
+  }
+  var fitQueued=false;
+  function refit(){ if(fitQueued) return; fitQueued=true; requestAnimationFrame(function(){ fitQueued=false; fit(); }); }
+  function wire(){
+    var b=document.querySelectorAll('.fb-theme');
+    for(var i=0;i<b.length;i++) b[i].addEventListener('click', function(){
+      var next = effective()==='dark' ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      save(next);
+      paint();
+    });
+    paint(); fit();
+    window.addEventListener('resize', refit);
+    function resync(){ apply(); paint(); }                // a choice made on the site or another game
+    document.addEventListener('visibilitychange', function(){ if(!document.hidden) resync(); });
+    window.addEventListener('pageshow', resync);          // back/forward cache restores the old DOM
+    window.addEventListener('load', fit);          // fonts and the seed badge can widen the bar after DOMContentLoaded
+    setTimeout(fit, 1500);
+  }
+  if(mq){ if(mq.addEventListener) mq.addEventListener('change', paint); else if(mq.addListener) mq.addListener(paint); }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', wire); else wire();
+})();
+</script>
+<style id="fb-coach-css">
+/* FinnBots COACH LAYER — the goal + the one control over the live game (templates/coach-layer.js) */
+.fb-coach{ position:fixed; left:50%; top:22%; transform:translateX(-50%); z-index:80; pointer-events:none;
+  width:max-content; max-width:min(88vw,420px); box-sizing:border-box; padding:12px 18px 13px; border-radius:14px;
+  background:rgba(32,24,38,.92); border:2px solid var(--fb-amber,#f2a03d); box-shadow:4px 4px 0 0 rgba(0,0,0,.45);
+  color:#fff; text-align:center; display:flex; flex-direction:column; gap:6px;
+  animation:fb-coach-in .35s ease-out both; transition:opacity .35s, transform .35s; }
+.fb-coach-goal{ font-family:var(--disp,system-ui); font-weight:400; font-size:clamp(18px,4.6vw,24px); line-height:1.15; letter-spacing:.3px; }
+.fb-coach-how{ font-family:var(--body,system-ui); font-size:clamp(13px,3.4vw,15px); line-height:1.3; color:var(--fb-amber,#f2a03d); font-weight:700; }
+.fb-coach-how::before{ content:"\25B6\FE0E  "; font-size:.8em; }
+.fb-coach-out{ opacity:0; transform:translateX(-50%) translateY(-8px); }
+@keyframes fb-coach-in{ from{ transform:translateX(-50%) translateY(10px); } }   /* position only: a stalled animation (a background tab, a throttled timeline) must still SHOW the box */
+@media (prefers-reduced-motion: reduce){ .fb-coach{ animation:none; transition:none; } }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="test-banner hidden" id="testBanner"><b>🧪 TEST MODE</b>Fake $OIL, local validator, no real funds</div>
+
+    <header class="topbar">
+      <!--fb:solanaeyebrow--><a class="fb-mark" href="https://finnstergram.com/games/" aria-label="FinnBots — more games"><svg class="fb-bot" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true" focusable="false"><path fill="#2a2350" d="M2 2h12v1H2zM1 3h1v1H1zM14 3h1v1H14zM0 4h1v1H0zM15 4h1v1H15zM0 5h1v1H0zM15 5h1v1H15zM0 6h1v1H0zM15 6h1v1H15zM0 7h1v1H0zM15 7h1v1H15zM0 8h1v1H0zM15 8h1v1H15zM0 9h1v1H0zM15 9h1v1H15zM0 10h1v1H0zM15 10h1v1H15zM0 11h1v1H0zM15 11h1v1H15zM0 12h1v1H0zM15 12h1v1H15zM1 13h1v1H1zM14 13h1v1H14zM2 14h12v1H2z"/><path fill="#ff8fc8" d="M3 0h2v1H3zM11 0h2v1H11zM3 1h2v1H3zM11 1h2v1H11z"/><path fill="#8fd3f5" d="M2 3h12v1H2zM1 4h14v1H1zM1 5h14v1H1zM1 6h14v1H1zM1 7h14v1H1zM1 8h14v1H1zM1 9h14v1H1zM1 10h14v1H1zM1 11h14v1H1zM1 12h14v1H1zM2 13h12v1H2z"/><path fill="#5aa9d6" d="M1 4h3v1H1zM1 5h3v1H1zM1 6h3v1H1zM1 7h3v1H1zM1 8h3v1H1zM1 9h3v1H1zM1 10h3v1H1zM1 11h3v1H1zM1 12h3v1H1z"/><path fill="#fff" d="M3 5h4v1H3zM9 5h4v1H9zM3 6h4v1H3zM9 6h4v1H9zM3 7h4v1H3zM9 7h4v1H9z"/><path fill="#2a2350" d="M4 5h1v1H4zM11 5h1v1H11zM4 6h2v1H4zM10 6h2v1H10z"/><path fill="#fff" d="M4 10h8v1H4zM4 11h8v1H4z"/><path fill="#2a2350" d="M6 10h1v1H6zM8 10h1v1H8zM10 10h1v1H10zM6 11h1v1H6zM8 11h1v1H8zM10 11h1v1H10z"/></svg><span class="fb-word">FINN<i>BOTS</i></span></a><button class="fb-theme" type="button" role="switch" aria-checked="false" aria-label="Night mode"><span class="fbt-track" aria-hidden="true"><span class="fbt-thumb"><svg class="fbt-sun" viewBox="0 0 7 7" shape-rendering="crispEdges"><path fill="#e8891c" d="M2 2h3v3H2zM3 0h1v1H3zM3 6h1v1H3zM0 3h1v1H0zM6 3h1v1H6zM1 1h1v1H1zM5 1h1v1H5zM1 5h1v1H1zM5 5h1v1H5z"/></svg><svg class="fbt-moon" viewBox="0 0 7 7" shape-rendering="crispEdges"><path fill="#3d3f9e" d="M2 0h3v1H2zM1 1h2v1H1zM0 2h2v3H0zM1 5h2v1H1zM2 6h3v1H2zM4 5h2v1H4z"/></svg></span></span></button><!--/fb-->
+      <h1>Pick-a-Bot</h1>
+      <button class="infobtn" id="infoBtn" type="button" aria-haspopup="dialog" aria-controls="howtoModal" title="How this works">ⓘ</button>
+    </header>
+
+    <div class="quickfacts"><p><b>Free</b> to play &nbsp;·&nbsp; <b>1 in 10</b> wins &nbsp;·&nbsp; <b>25 $OIL</b> to play for prizes</p></div>
+
+    <section class="walletbar" id="connectCard">
+      <div class="wb-row">
+        <span class="wb-text">Free play below — or hold 25 $OIL to play for prizes</span>
+        <button class="connect-btn" id="connectBtn" type="button">Connect</button>
+      </div>
+      <div class="wallet-status hidden" id="walletStatus" aria-live="polite"></div>
+    </section>
+
+    <main class="lineup-wrap">
+      <span id="lineupLabel" class="sr-only">Pick a Bot — one in ten wins</span>
+      <div class="lineup" role="radiogroup" aria-labelledby="lineupLabel" id="lineup"></div>
+    </main>
+
+    <div class="playbar">
+      <button class="play" id="playPaidBtn" disabled hidden>Pick a Bot, then play for $OIL</button>
+      <button class="play" id="playBtn" disabled>Pick a Bot to play</button>
+    </div>
+
+    <footer>
+      <p class="tag">Built for fun. Revived with purpose.</p>
+      <div class="marketing-links">
+        <a href="https://magiceden.us/marketplace/finnbot" target="_blank" rel="noopener">Buy a Bot ↗</a>
+        <a href="https://finnstergram.com" target="_blank" rel="noopener">finnstergram.com ↗</a>
+      </div>
+    </footer>
+  </div>
+
+  <div class="stage" id="stage" aria-live="polite"></div>
+
+  <div class="hidden" id="howtoModal" role="dialog" aria-modal="true" aria-labelledby="howtoTitle">
+    <div class="howto-card">
+      <h2 id="howtoTitle">How this works</h2>
+      <p><b>FinnBots is a Solana NFT collection.</b> Pick-a-Bot runs on Solana — you'll need a Solana wallet (Phantom recommended) to play for real $OIL.</p>
+      <p><b>The odds.</b> Ten Bots in the line-up, one drawn each round — 1 in 10, every round, the same for everyone whether you're playing free or for real $OIL.</p>
+      <p><b>Free Play.</b> No wallet, no cost. Pick a Bot and play, purely for fun.</p>
+      <p><b>$OIL Play.</b> Anyone holding at least 25 $OIL can play — connect your wallet and pay 25 $OIL to enter. Win, and 200 $OIL is yours, paid in the next weekly batch (same as emissions, not instantly). <b>Hold a FinnBot and a win pays 1.5× — 300 $OIL instead of 200.</b> Your Bot holding is re-checked when the batch is paid.</p>
+      <p><b>Payment.</b> You sign exactly one transaction: your 25 $OIL entry fee. Nothing else is ever requested, and nothing is taken unless you choose to play.</p>
+      <p><b>Wallet safety.</b> Connecting only lets us read your $OIL balance and which Bots you hold — that's it. We'll never ask for your seed phrase or private key, and your wallet only ever prompts you once, for the entry payment itself, which you approve or decline each time.</p>
+      <button class="howto-close" id="howtoCloseBtn" type="button">Got it</button>
+    </div>
+  </div>
+
+  <script>
+    // Info-modal open/close — presentation only, entirely separate from the game logic below.
+    (function(){
+      "use strict";
+      var infoBtn = document.getElementById('infoBtn');
+      var modal = document.getElementById('howtoModal');
+      var closeBtn = document.getElementById('howtoCloseBtn');
+      function open(){ modal.classList.remove('hidden'); closeBtn.focus(); }
+      function close(){ modal.classList.add('hidden'); infoBtn.focus(); }
+      infoBtn.addEventListener('click', open);
+      closeBtn.addEventListener('click', close);
+      modal.addEventListener('click', function(e){ if(e.target === modal) close(); });
+      document.addEventListener('keydown', function(e){
+        if(e.key === 'Escape' && !modal.classList.contains('hidden')) close();
+      });
+    })();
+  </script>
+
+<!-- ?v= query strings are cache-busters: bump them in lockstep with BUILD_TAG on
+     every deploy so no browser (Chrome, Safari, or Phantom's webview) can ever
+     silently run a stale copy of these files again. -->
+<script src="phantom-deeplink-libs.min.js?v=20260706c"></script>
+<script src="phantom-mobile.js?v=20260706c"></script>
+<script src="solana-web3.iife.min.js?v=20260706c"></script>
+<script>
+(function(){
+  "use strict";
+
+  // ---- Config. No secret keys live in this file — by design (the airtight holder check). ----
+  // RPC: a free public, read-only endpoint. Can be swapped for a private endpoint later if traffic grows.
+  //
+  // ⚠️ TEST_MODE — THE SINGLE SWITCH FOR STEP 4b TESTING ⚠️
+  // true  = talks to the LOCAL VALIDATOR only, uses the FAKE test token + test treasury,
+  //         and skips the holder-gate check (the test wallet holds no real Bots).
+  // false = talks to the real proxy, real $OIL, real treasury, real holder gate. LIVE.
+  // These three things are locked together on purpose — there is no way to get "skip the
+  // holder check" without also getting "fake money only." Before this game goes live to
+  // real holders, this MUST be set back to false.
+  var TEST_MODE = false;
+
+  var CFG = TEST_MODE ? {
+    NETWORK: 'local-test-validator',
+    RPC: 'http://127.0.0.1:8899',
+    TOKEN_PROGRAM: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+    MEMO_PROGRAM: 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr',
+    OIL_MINT: '8KRQ4jfLknFjxmuH2D1ab4b3MA8S6LRcoaXVQcudQtzb',        // throwaway test token, NOT real $OIL
+    TREASURY: '8tzZzNiGkE2kYXhUSauNEUyVHiaWBt5pBagg7CHKPNBM',        // throwaway test treasury wallet
+    TREASURY_TOKEN_ACCOUNT: 'CRgnFpKUjzhHn97GqACN32mQpoohpeDJtGWGtNu81w2q', // throwaway test treasury's OIL account
+    ENTRY_FEE: 25,
+    DECIMALS: 2
+  } : {
+    NETWORK: 'mainnet',
+    RPC: 'https://finnbots-rpc.mart-kin1000.workers.dev',
+    TOKEN_PROGRAM: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+    MEMO_PROGRAM: 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr',
+    OIL_MINT: 'HrcfXJcFdMoLfbkN5qCTSFrLsAgJNHitmwKc5AyS7xzf',
+    TREASURY: '75WPN3kwYUT5kdPU7V3Fp3LhnxmPC38bsgBCasRQdXMR',
+    TREASURY_TOKEN_ACCOUNT: '2ZBNMLZFfHCuZm9Lfc3b7ut296tRwGtapuXad7zSm1ED', // real treasury's $OIL account
+    ENTRY_FEE: 25,
+    DECIMALS: 2
+  };
+  var wallet = { pubkey: null, bots: 0, oil: 0 };  // oil = liquid $OIL balance in whole OIL
+  var BOTSET = null;          // Set of real Bot mint addresses, loaded from bots.json
+  var BOTSET_READY = false;   // true once the list load has resolved (success or failure)
+
+  // ---- Real Bot artwork for the line-up ----
+  // Ten actual FinnBots, one per draw position (0–9), spanning all three
+  // editions. Images load straight from the permanent Arweave store —
+  // no key, no server, same base used for on-chain metadata. Bot #106 is
+  // the official collection PFP (electric blue CryptoBot). Pattern
+  // confirmed working: {ARWEAVE_BASE}/{botNumber}.png
+  var ARWEAVE_BASE = 'https://arweave.net/_cPSCheRvzVBlZK7QwM-3nXtteMdBbUn-zJhbGRlMmo';
+  var BOT_SHOWCASE = [106, 355, 710, 940, 1150, 1620, 860, 2106, 2480, 357];
+
+  function botImageURL(n){ return ARWEAVE_BASE + '/' + BOT_SHOWCASE[n] + '.png'; }
+
+  // Renders a tile's image with a graceful fallback: if the Arweave gateway
+  // is ever briefly unreachable, the tile falls back to a plain numbered
+  // swatch instead of a broken-image icon — the game keeps working either way.
+  function botImageHTML(n, alt){
+    return '<img src="'+botImageURL(n)+'" alt="'+alt+'" loading="lazy" '
+      + 'onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{'
+      + 'textContent:\'#'+BOT_SHOWCASE[n]+'\',className:\'img-fallback\'}));" />';
+  }
+
+  // ---- State ----
+  var lineup = document.getElementById('lineup');
+  var playBtn = document.getElementById('playBtn');
+  var stage = document.getElementById('stage');
+  var tiles = [];
+  var picked = null;     // 0–9
+  var busy = false;
+
+  // ---- Build the line-up ----
+  for(var i=0; i<10; i++){
+    (function(n){
+      var t = document.createElement('button');
+      t.className = 'tile';
+      t.type = 'button';
+      t.style.setProperty('--tile-bg', 'var(--swatch-'+n+')');
+      t.setAttribute('role','radio');
+      t.setAttribute('aria-checked','false');
+      t.setAttribute('aria-label','Bot '+n+' — FinnBot #'+BOT_SHOWCASE[n]);
+      t.innerHTML = '<span class="botimg-wrap">'+botImageHTML(n, 'FinnBot #'+BOT_SHOWCASE[n])+'</span>'
+        + '<span class="num">'+n+'</span>';
+      t.addEventListener('click', function(){ select(n); });
+      lineup.appendChild(t);
+      tiles.push(t);
+    })(i);
+  }
+
+  function select(n){
+    if(busy) return;
+    picked = n;
+    tiles.forEach(function(t,idx){ t.setAttribute('aria-checked', idx===n ? 'true' : 'false'); });
+    playBtn.disabled = false;
+    playBtn.textContent = 'Play free round';
+    if(!playPaidBtn.hidden){
+      playPaidBtn.disabled = !canPlayPaid();
+      playPaidBtn.textContent = 'Play for '+CFG.ENTRY_FEE+' $OIL';
+    }
+  }
+
+  function clearStates(){
+    tiles.forEach(function(t){ t.classList.remove('scanning','drawn'); });
+  }
+
+  var prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  playBtn.addEventListener('click', function(){
+    if(busy || picked === null) return;
+    busy = true;
+    playBtn.disabled = true;
+    playBtn.textContent = 'Powering up the Bots…';
+    if(!playPaidBtn.hidden) playPaidBtn.disabled = true;
+    stage.innerHTML = '';
+    tiles.forEach(function(t){ t.disabled = true; t.setAttribute('aria-checked','false'); });
+    clearStates();
+
+    // Free-play draw is a simple in-browser random. (Paid rounds use the blockchain — see result note.)
+    var draw = Math.floor(Math.random()*10);
+    runSweepThenReveal(draw);
+  });
+
+  // Shared scanner-sweep animation, used by both free rounds (draw known instantly) and
+  // paid rounds (draw only known once the payment transaction is confirmed on-chain).
+  function runSweepThenReveal(draw, opts){
+    if(prefersReduced){
+      reveal(draw, opts);
+      return;
+    }
+    var order = [], steps = 16;
+    for(var s=0; s<steps; s++) order.push(s % 10);
+    order.push(draw);
+    var idx = 0, last = null;
+    var timer = setInterval(function(){
+      if(last !== null) tiles[last].classList.remove('scanning');
+      var cur = order[idx];
+      tiles[cur].classList.add('scanning');
+      last = cur;
+      idx++;
+      if(idx >= order.length){
+        clearInterval(timer);
+        setTimeout(function(){
+          if(last !== null) tiles[last].classList.remove('scanning');
+          reveal(draw, opts);
+        }, 260);
+      }
+    }, 70);
+  }
+
+  function reveal(draw, opts){
+    var paid = !!(opts && opts.paid);
+    tiles[draw].classList.add('drawn');
+    if(picked !== null && picked !== draw) tiles[picked].setAttribute('aria-checked','true');
+    var win = (picked === draw);
+
+    var yourBot = '<div class="bot-show"><span class="botimg-wrap">'+botImageHTML(picked,'Your pick')+'</span><span class="cap">You picked<b>Bot '+picked+'</b></span></div>';
+    var drawnBot = '<div class="bot-show"><span class="botimg-wrap">'+botImageHTML(draw,'Machine draw')+'</span><span class="cap">Machine drew<b>Bot '+draw+'</b></span></div>';
+
+    var html = '<div class="result '+(win?'win':'')+'">';
+    if(paid){
+      var sigShort = opts.signature ? (opts.signature.slice(0,6)+'…'+opts.signature.slice(-6)) : '';
+      if(win){
+        var prizeAmt = wallet.bots > 0 ? 300 : 200;
+        var bonusNote = wallet.bots > 0
+          ? ' (200 base + 1.5× Bot-holder bonus)'
+          : '';
+        html += '<h2>Matched!</h2>';
+        html += '<div class="bots-shown">'+yourBot+'</div>';
+        html += '<span class="prize">'+prizeAmt+' $OIL'+bonusNote+' — recorded for the weekly batch</span>';
+        html += '<p class="detail">Your entry is on-chain'+(sigShort?' ('+sigShort+')':'')+'. The prize isn’t sent instantly — it arrives with the next weekly $OIL payout, same as emissions. Your Bot holding is re-checked at payout time.</p>';
+      } else {
+        html += '<h2>No match this time</h2>';
+        html += '<div class="bots-shown">'+yourBot+drawnBot+'</div>';
+        html += '<p class="detail">One in ten. Your '+CFG.ENTRY_FEE+' $OIL entry is on-chain'+(sigShort?' ('+sigShort+')':'')+'. Have another go any time.</p>';
+      }
+      html += '<button class="again" id="againBtn" type="button">Play again</button>';
+    } else {
+      if(win){
+        html += '<h2>Matched!</h2>';
+        html += '<div class="bots-shown">'+yourBot+'</div>';
+        html += '<span class="prize">In a paid round, that wins 200 $OIL — or 300 if you hold a Bot</span>';
+        html += '<p class="detail">One in ten — and you nailed it.</p>';
+      } else {
+        html += '<h2>No match this time</h2>';
+        html += '<div class="bots-shown">'+yourBot+drawnBot+'</div>';
+        html += '<p class="detail">One in ten. Have another go — it costs nothing here.</p>';
+      }
+      html += '<button class="again" id="againBtn" type="button">Play again</button>';
+      html += '<p class="upsell">Free play is just for fun. <b>Hold $OIL to play for real prizes</b> — anyone with '+CFG.ENTRY_FEE+' $OIL can enter, and <b>holding a FinnBot pays 1.5× on a win (300 instead of 200)</b>. Winners are paid in the weekly batch, and the winning Bot is drawn on-chain so nobody can rig it. <a href="https://magiceden.us/marketplace/finnbot" target="_blank" rel="noopener">Buy a Bot on Magic Eden ↗</a></p>';
+    }
+    html += '</div>';
+    stage.innerHTML = html;
+
+    document.getElementById('againBtn').addEventListener('click', resetGame);
+    stage.scrollIntoView({behavior: prefersReduced ? 'auto' : 'smooth', block:'nearest'});
+  }
+
+  function resetGame(){
+    busy = false;
+    picked = null;
+    stage.innerHTML = '';
+    clearStates();
+    tiles.forEach(function(t){ t.disabled = false; t.setAttribute('aria-checked','false'); });
+    playBtn.disabled = true;
+    playBtn.textContent = 'Pick a Bot to play';
+    if(!playPaidBtn.hidden){
+      playPaidBtn.disabled = true;
+      playPaidBtn.textContent = 'Pick a Bot, then play for $OIL';
+    }
+    lineup.scrollIntoView({behavior: prefersReduced ? 'auto' : 'smooth', block:'nearest'});
+  }
+
+  // ---- Paid mode (4a): wallet connect + holder check. Read-only — spends nothing. ----
+  var connectBtn = document.getElementById('connectBtn');
+  var walletStatus = document.getElementById('walletStatus');
+  var playPaidBtn = document.getElementById('playPaidBtn');
+
+  if(TEST_MODE){ document.getElementById('testBanner').classList.remove('hidden'); }
+
+  // Entry gate (v1.1, 4 July 2026): open to ANY $OIL holder with enough liquid
+  // OIL to cover the entry fee — Bot ownership is no longer required to play.
+  // Bot ownership instead grants a 1.5x prize multiplier, applied at payout time
+  // by the weekly scanner. The definitive balance check still happens again in
+  // the paid-play flow right before the transaction is built, so this can never
+  // let a wallet overspend.
+  function canPlayPaid(){ return !!wallet.pubkey && wallet.oil >= CFG.ENTRY_FEE; }
+
+  function getProvider(){
+    if(window.phantom && window.phantom.solana && window.phantom.solana.isPhantom) return window.phantom.solana;
+    if(window.solana && window.solana.isPhantom) return window.solana;
+    return null;
+  }
+  function shortAddr(a){ return a.slice(0,4)+'…'+a.slice(-4); }
+  function setStatus(html, cls){
+    walletStatus.classList.remove('hidden');
+    walletStatus.className = 'wallet-status' + (cls ? ' '+cls : '');
+    walletStatus.innerHTML = html;
+  }
+
+  connectBtn.addEventListener('click', async function(){
+    var provider = getProvider();
+    if(!provider){
+      // No injected provider — expected on Chrome/Edge on iOS (Phantom only
+      // injects into Safari-with-extension or its own in-app browser).
+      if(window.PhantomMobile && PhantomMobile.isMobile()){
+        var inBrowseAlready = new URLSearchParams(window.location.search).get('src') === 'browse';
+        if(!inBrowseAlready){
+          // FRONT DOOR (v9): Phantom's "browse" deeplink opens this page INSIDE
+          // Phantom's own browser, where window.solana IS injected — so Connect
+          // and payment become in-place popups and the whole game runs in one
+          // tab. Far better UX than the redirect round-trips (3 tabs/round).
+          connectBtn.disabled = true;
+          connectBtn.textContent = 'Opening in Phantom…';
+          setStatus('Opening this game inside Phantom\u2019s browser — everything runs in one place there.');
+          var target = window.location.origin + window.location.pathname + '?src=browse';
+          window.location.href = 'https://phantom.app/ul/browse/' +
+            encodeURIComponent(target) + '?ref=' + encodeURIComponent(window.location.origin);
+          return;
+        }
+        // Already inside Phantom's browser via the browse link but STILL no
+        // provider (some webviews don't inject) — fall back to the proven
+        // encrypted redirect flow. Works everywhere, just less slick.
+        connectBtn.disabled = true;
+        connectBtn.textContent = 'Opening Phantom…';
+        setStatus('Opening Phantom — approve the connection, then you\u2019ll come straight back here.');
+        PhantomMobile.connect(window.location.origin + window.location.pathname);
+        return;
+      }
+      setStatus('Phantom isn’t reachable here. If you’re viewing this inside the chat preview, that’s expected — the preview is a sealed window and wallets can’t connect to it. Download the file and open it in your own browser with the <a href="https://phantom.app" target="_blank" rel="noopener">Phantom</a> extension installed.', 'warn');
+      return;
+    }
+    connectBtn.disabled = true;
+    connectBtn.textContent = 'Connecting…';
+    try{
+      var resp = await provider.connect();
+      wallet.pubkey = resp.publicKey.toString();
+      connectBtn.textContent = 'Connected';
+      setStatus('Connected as <span class="addr">'+shortAddr(wallet.pubkey)+'</span><br/>Checking your $OIL balance…');
+      checkHolder(wallet.pubkey);
+    }catch(e){
+      connectBtn.disabled = false;
+      connectBtn.textContent = 'Connect Phantom';
+      setStatus('Connection cancelled. Tap Connect to try again.', 'warn');
+    }
+  });
+
+  // ---- Mobile deeplink resume — runs once per page load ----
+  // Two things can bring someone back to this page from the Phantom app:
+  // a Connect approval, or a signed entry-payment transaction. Both arrive
+  // as query params on this same URL; PhantomMobile decrypts whichever one
+  // is present (if any) and tells us which.
+  var PENDING_PLAY_KEY = 'fb_pickabot_pending_play';
+  function savePendingPlay(obj){ try{ localStorage.setItem(PENDING_PLAY_KEY, JSON.stringify(obj)); }catch(e){} }
+  function loadPendingPlay(){ try{ var v = localStorage.getItem(PENDING_PLAY_KEY); return v ? JSON.parse(v) : null; }catch(e){ return null; } }
+  function clearPendingPlay(){ try{ localStorage.removeItem(PENDING_PLAY_KEY); }catch(e){} }
+
+  // Build tag — bump on every deploy. Lets us verify at a glance, on-device,
+  // which version is actually running (stale iOS/Phantom webview caches served
+  // old builds repeatedly during the 5 July debugging session and disguised
+  // themselves as code failures).
+  var BUILD_TAG = 'v9-20260706c';
+  console.log('[pick-a-bot] build', BUILD_TAG);
+
+  (async function resumePhantomState(){
+    var action = new URLSearchParams(window.location.search).get('phantom_action');
+    var rawParamsForDiagnostic = window.location.search; // captured BEFORE any cleanup strips it
+
+    function diagnosticHTML(){
+      return '<br/><br/><b style="font-size:11px;">DIAGNOSTIC ('+BUILD_TAG+') — please screenshot this:</b>' +
+        '<br/><span style="word-break:break-all; font-size:10px;">'+ (rawParamsForDiagnostic ? rawParamsForDiagnostic.slice(0,1200) : '(empty)') +'</span>';
+    }
+
+    if(!action) {
+      // No redirect this load — but if a session already exists (e.g. the
+      // person just refreshed the page), restore the connected UI silently.
+      if(!wallet.pubkey && window.PhantomMobile && PhantomMobile.hasSession()){
+        wallet.pubkey = PhantomMobile.getSessionPublicKey();
+        connectBtn.textContent = 'Connected'; connectBtn.disabled = true;
+        setStatus('Connected as <span class="addr">'+shortAddr(wallet.pubkey)+'</span><br/>Checking your $OIL balance…');
+        checkHolder(wallet.pubkey);
+      }
+      return;
+    }
+
+    // We're landing back from Phantom. IMPORTANT ORDER: decrypt FIRST.
+    // consumePendingRedirect reads the encrypted payload plus the decryption
+    // key carried in the URL itself (see phantom-mobile.js) — this is the
+    // only path that works when the return lands in a different browser
+    // context (Chrome → Phantom's in-app browser), because no storage
+    // survives that jump. It also strips the URL params itself when done.
+    connectBtn.disabled = true; connectBtn.textContent = 'Finishing connection…';
+    setStatus('Almost there — finishing the connection to Phantom…');
+
+    var result = window.PhantomMobile ? PhantomMobile.consumePendingRedirect('pickabot_sign') : null;
+
+    if(result && result.type === 'connect'){
+      wallet.pubkey = result.publicKey;
+      connectBtn.textContent = 'Connected';
+      setStatus('Connected as <span class="addr">'+shortAddr(wallet.pubkey)+'</span><br/>Checking your $OIL balance…');
+      checkHolder(wallet.pubkey);
+      return;
+    }
+    if(result && result.type === 'signTransaction'){
+      var returnParams = new URLSearchParams(rawParamsForDiagnostic);
+      var pickFromUrl = returnParams.get('pick');
+      var ownerFromUrl = returnParams.get('owner');
+      if(!wallet.pubkey){
+        wallet.pubkey = (PhantomMobile.hasSession() && PhantomMobile.getSessionPublicKey()) || ownerFromUrl || null;
+      }
+      // Tidy our own params out of the URL bar (phantom-mobile already stripped its own).
+      try{
+        var u = new URL(window.location.href);
+        u.searchParams.delete('pick'); u.searchParams.delete('owner');
+        window.history.replaceState({}, document.title, u.pathname + (u.search || '') + u.hash);
+      }catch(e){}
+      resumePaidPlayAfterSign(result.txBytes, pickFromUrl, ownerFromUrl);
+      return;
+    }
+
+    // Decrypt didn't produce a result (params missing/invalid) or errored.
+    // Bonus path: if this browser happens to have the injected provider
+    // (e.g. Phantom's main browser tab), plain connect works — try briefly.
+    var start = Date.now();
+    var provider = getProvider();
+    while(!provider && Date.now() - start < 3000){
+      await delay(250);
+      provider = getProvider();
+    }
+    if(provider){
+      try{
+        var resp = await provider.connect();
+        wallet.pubkey = resp.publicKey.toString();
+        connectBtn.textContent = 'Connected';
+        setStatus('Connected as <span class="addr">'+shortAddr(wallet.pubkey)+'</span><br/>Checking your $OIL balance…');
+        checkHolder(wallet.pubkey);
+        return;
+      }catch(e){ /* fall through to the failure message below */ }
+    }
+
+    connectBtn.disabled = false; connectBtn.textContent = 'Connect Phantom';
+    var failMsg = (result && result.type === 'error') ? result.message
+      : 'The connection didn\u2019t complete — tap Connect to try again.';
+    setStatus(failMsg + diagnosticHTML(), 'warn');
+  })();
+
+  // Load the published Bot list (public mint addresses) once at startup.
+  (async function loadBots(){
+    try{
+      var r = await fetch('bots.json', { cache: 'no-store' });
+      if(!r.ok) throw new Error('http '+r.status);
+      var arr = await r.json();
+      if(Array.isArray(arr) && arr.length){ BOTSET = new Set(arr); }
+    }catch(e){ BOTSET = null; }
+    BOTSET_READY = true;
+  })();
+
+  // Several free, no-key public endpoints. We try them in turn so one being busy doesn't block a holder.
+  var RPCS = [
+    'https://finnbots-rpc.mart-kin1000.workers.dev'
+  ];
+
+  function delay(ms){ return new Promise(function(res){ setTimeout(res, ms); }); }
+
+  // Query one endpoint with a timeout. Returns the token-account list, or null on any failure.
+  async function fetchTokenAccounts(ep, body){
+    var ctrl = new AbortController();
+    var to = setTimeout(function(){ ctrl.abort(); }, 9000);
+    try{
+      var r = await fetch(ep, { method:'POST', headers:{'Content-Type':'application/json'}, body:body, signal:ctrl.signal });
+      clearTimeout(to);
+      if(!r.ok){ console.error('[holder]', ep, 'HTTP', r.status); return null; }
+      var j = await r.json();
+      if(j.error){ console.error('[holder]', ep, 'rpc error', j.error); return null; }
+      if(j.result && j.result.value){ console.log('[holder]', ep, 'ok —', j.result.value.length, 'token accounts'); return j.result.value; }
+      console.error('[holder]', ep, 'unexpected response', j); return null;
+    }catch(e){ clearTimeout(to); console.error('[holder]', ep, 'request failed:', (e && e.message) || e); return null; }
+  }
+
+  function showVerifyFail(owner){
+    setStatus('Connected as <span class="addr">'+shortAddr(owner)+'</span><br/>Couldn’t verify your Bots just now — the public network was busy. <button id="retryCheck" class="retry-btn" type="button">Retry check</button><br/>Free play below always works.', 'warn');
+    var rb = document.getElementById('retryCheck');
+    if(rb){ rb.addEventListener('click', function(){
+      setStatus('Connected as <span class="addr">'+shortAddr(owner)+'</span><br/>Re-checking your FinnBots…');
+      checkHolder(owner);
+    }); }
+  }
+
+  // Reads the wallet's liquid $OIL balance (whole OIL) by summing its OIL token
+  // account(s). Used by the TEST_MODE branch, which talks to the local validator
+  // directly; the live branch reads OIL inline from its existing holder-check RPC
+  // call. Returns 0 on any failure — fail-safe: a lookup glitch never falsely
+  // clears a wallet, it just leaves them on free play.
+  async function fetchOilBalance(owner){
+    try{
+      var body = JSON.stringify({ jsonrpc:'2.0', id:'oilbal', method:'getTokenAccountsByOwner',
+        params:[ owner, { mint: CFG.OIL_MINT }, { encoding:'jsonParsed' } ] });
+      var r = await fetch(CFG.RPC, { method:'POST', headers:{'Content-Type':'application/json'}, body:body });
+      if(!r.ok) return 0;
+      var j = await r.json();
+      var accts = j && j.result && j.result.value;
+      if(!accts || !accts.length) return 0;
+      var base = 0;
+      accts.forEach(function(acc){
+        try{ base += Number(acc.account.data.parsed.info.tokenAmount.amount); }catch(e){}
+      });
+      return base / Math.pow(10, CFG.DECIMALS);
+    }catch(e){ return 0; }
+  }
+
+  // No-key eligibility check. Reads $OIL balance (the entry gate) and Bot count
+  // (now only for the 1.5x-bonus messaging). Fail-safe throughout.
+  async function checkHolder(owner){
+    if(TEST_MODE){
+      // In TEST_MODE we still read the real (test) $OIL balance so the new
+      // balance gate can be exercised end-to-end. Bot count is faked, since the
+      // test wallet holds no real Bots — the multiplier is verified separately
+      // by the scanner's own tests, not here.
+      wallet.bots = 0;
+      wallet.oil = await fetchOilBalance(owner);
+      if(wallet.oil >= CFG.ENTRY_FEE){
+        setStatus('Connected as <span class="addr">'+shortAddr(owner)+'</span><br/>🧪 TEST MODE — you hold <b>'+wallet.oil.toFixed(2)+'</b> test $OIL. Cleared to play (fake money).', 'ok');
+        playPaidBtn.hidden = false;
+        playPaidBtn.disabled = !(picked !== null);
+        if(picked !== null) playPaidBtn.textContent = 'Play for '+CFG.ENTRY_FEE+' $OIL';
+      } else {
+        setStatus('Connected as <span class="addr">'+shortAddr(owner)+'</span><br/>🧪 TEST MODE — this wallet holds '+wallet.oil.toFixed(2)+' test $OIL, need '+CFG.ENTRY_FEE+' to play.', 'warn');
+        playPaidBtn.hidden = true;
+      }
+      return;
+    }
+    if(!BOTSET_READY){ await delay(700); }
+    // Note: BOTSET (the Bot list) is now only used to detect the 1.5x bonus, not
+    // to gate entry. If it failed to load we can still clear an $OIL holder to
+    // play — they just won't see the bonus flagged. We proceed either way; the
+    // OIL balance below is what actually gates. Bot count defaults to 0 if the
+    // list is unavailable, and the scanner re-checks Bot ownership at payout time
+    // regardless, so the bonus is never lost by a client-side list glitch.
+    var body = JSON.stringify({ jsonrpc:'2.0', id:'finnbots', method:'getTokenAccountsByOwner',
+      params:[ owner, { programId: CFG.TOKEN_PROGRAM }, { encoding:'jsonParsed' } ] });
+
+    var value = null;
+    // two passes over the endpoint list, with a short pause between, to ride out rate limits
+    for(var pass=0; pass<2 && !value; pass++){
+      for(var i=0; i<RPCS.length && !value; i++){
+        value = await fetchTokenAccounts(RPCS[i], body);
+      }
+      if(!value && pass===0){ await delay(1200); }
+    }
+
+    if(!value){ showVerifyFail(owner); return; }
+
+    var held = 0;
+    var oilBase = 0;
+    value.forEach(function(acc){
+      try{
+        var info = acc.account.data.parsed.info;
+        var amt = info.tokenAmount;
+        // A Bot held = exactly 0 decimals, balance >= 1, and a known Bot mint.
+        if(amt && Number(amt.decimals) === 0 && Number(amt.amount) >= 1 && BOTSET && BOTSET.has(info.mint)){ held++; }
+        // Liquid $OIL balance = the token account for the OIL mint.
+        if(info.mint === CFG.OIL_MINT && amt){ oilBase += Number(amt.amount); }
+      }catch(e){ /* skip any malformed account */ }
+    });
+    wallet.bots = held;
+    wallet.oil = oilBase / Math.pow(10, CFG.DECIMALS);
+
+    if(wallet.oil >= CFG.ENTRY_FEE){
+      // Cleared to play — gate is $OIL, not Bots. Bot ownership just adds the bonus.
+      var bonusLine = held > 0
+        ? 'You hold <b>'+held+'</b> FinnBot'+(held===1?'':'s')+', so a win pays the <b>1.5× bonus (300 $OIL)</b>.'
+        : 'Hold a FinnBot and a win pays <b>1.5× (300 $OIL)</b> instead of 200.';
+      setStatus('Connected as <span class="addr">'+shortAddr(owner)+'</span><br/>You hold <b>'+wallet.oil.toFixed(2)+'</b> $OIL — cleared to play. '+bonusLine, 'ok');
+      playPaidBtn.hidden = false;
+      playPaidBtn.disabled = !(picked !== null);
+      if(picked !== null) playPaidBtn.textContent = 'Play for '+CFG.ENTRY_FEE+' $OIL';
+    } else {
+      setStatus('Connected as <span class="addr">'+shortAddr(owner)+'</span><br/>This wallet holds <b>'+wallet.oil.toFixed(2)+'</b> $OIL — you need at least '+CFG.ENTRY_FEE+' to play for real. Free play below is open to everyone.', 'warn');
+      playPaidBtn.hidden = true;
+    }
+  }
+
+  // ---- Paid mode (4b): the $OIL entry-payment flow. ----
+  // The player signs exactly ONE transaction: a transfer of the entry fee, with a memo
+  // recording their pick. WE submit it (not the wallet), so it goes through the right
+  // network — the proxy in live mode, the local validator directly in TEST_MODE. The
+  // treasury keypair is never involved here at all; it only matters for weekly payouts.
+
+  function PayError(msg){ this.userMessage = msg; }
+
+  // 8-byte little-endian amount, as the classic SPL Token program's Transfer instruction expects.
+  function u64LE(amount){
+    var out = new Uint8Array(8);
+    var big = BigInt(Math.round(amount));
+    for(var i=0; i<8; i++){ out[i] = Number(big & 0xffn); big >>= 8n; }
+    return out;
+  }
+
+  function buildTransferIx(sourcePubkey, destPubkey, ownerPubkey, amountBaseUnits){
+    var data = new Uint8Array(9);
+    data[0] = 3; // Transfer instruction index, classic Token program
+    data.set(u64LE(amountBaseUnits), 1);
+    return new solanaWeb3.TransactionInstruction({
+      programId: new solanaWeb3.PublicKey(CFG.TOKEN_PROGRAM),
+      keys: [
+        { pubkey: sourcePubkey, isSigner:false, isWritable:true },
+        { pubkey: destPubkey, isSigner:false, isWritable:true },
+        { pubkey: ownerPubkey, isSigner:true, isWritable:false }
+      ],
+      data: data
+    });
+  }
+
+  function buildMemoIx(ownerPubkey, text){
+    return new solanaWeb3.TransactionInstruction({
+      programId: new solanaWeb3.PublicKey(CFG.MEMO_PROGRAM),
+      keys: [{ pubkey: ownerPubkey, isSigner:true, isWritable:false }],
+      data: new TextEncoder().encode(text)
+    });
+  }
+
+  // The draw (security audit F24, 2026-10-21): the blockhash of the first finalized block at least
+  // DRAW_SLOT_OFFSET slots AFTER your entry landed, hashed with your entry's signature. That block does
+  // not exist when you sign, so nobody (not even a script holding its own key) can know the draw in
+  // advance. Anyone can recompute it from the public chain; the prize scanner does exactly this.
+  var DRAW_SLOT_OFFSET = 2;
+  function rpcRaw(method, params){
+    return fetch(CFG.RPC, { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ jsonrpc:'2.0', id:1, method:method, params:params }) })
+      .then(function(r){ return r.json(); });
+  }
+  async function futureBlockHash(entrySlot, timeoutMs){
+    var slot = entrySlot + DRAW_SLOT_OFFSET, start = Date.now(), hops = 0;
+    while(Date.now() - start < timeoutMs){
+      var j = await rpcRaw('getBlock', [slot, { commitment:'finalized', transactionDetails:'none', rewards:false, maxSupportedTransactionVersion:0 }]);
+      if(j.result && j.result.blockhash) return j.result.blockhash;
+      var code = j.error && j.error.code;
+      if(code === -32007 || code === -32009){ slot++; if(++hops > 64) break; continue; }   // skipped slot: no block there
+      await delay(1500);                                                                     // not finalized yet
+    }
+    return null;
+  }
+  async function futureDraw(sigBytes, blockhash){
+    var bh = new solanaWeb3.PublicKey(blockhash).toBytes(), buf = new Uint8Array(bh.length + sigBytes.length);
+    buf.set(bh, 0); buf.set(sigBytes, bh.length);
+    var digest = await crypto.subtle.digest('SHA-256', buf);
+    return new DataView(digest).getUint32(0) % 10;
+  }
+  async function finalizedSlot(signature, timeoutMs){       // the slot the scanner will see: the FINALIZED one
+    var start = Date.now();
+    while(Date.now() - start < timeoutMs){
+      var j = await rpcRaw('getSignatureStatuses', [[signature]]);
+      var st = j.result && j.result.value && j.result.value[0];
+      if(st && st.confirmationStatus === 'finalized' && typeof st.slot === 'number') return st.slot;
+      await delay(1500);
+    }
+    return null;
+  }
+  async function drawAfter(signature, sigBytes){
+    setStatus('Entry confirmed — the machine is waiting for the next blocks on the chain to draw your Bot…');
+    var entrySlot = await finalizedSlot(signature, 90000);
+    var bh = entrySlot === null ? null : await futureBlockHash(entrySlot, 90000);
+    if(!bh) throw new PayError('Your entry is in (it counts), but the chain was slow to settle the draw. The scanner draws it the same way — any prize arrives with the next payout.');
+    return futureDraw(sigBytes, bh);
+  }
+
+  // Poll (not websocket-dependent — the proxy only allows plain POST RPC calls).
+  async function confirmSignature(connection, signature, timeoutMs){
+    var start = Date.now();
+    while(Date.now() - start < timeoutMs){
+      var res = await connection.getSignatureStatuses([signature]);
+      var st = res && res.value && res.value[0];
+      if(st){
+        if(st.err) throw new PayError('The payment transaction failed on-chain — no charge was made. Please try again.');
+        if(st.confirmationStatus === 'confirmed' || st.confirmationStatus === 'finalized') return true;
+      }
+      await delay(1500);
+    }
+    return false;
+  }
+
+  // Completes a paid round after the page comes back from Phantom's mobile
+  // app with a signed transaction. Mirrors the tail end of the inline
+  // (desktop-extension) flow above exactly — same submit, confirm, draw,
+  // and reveal steps — so both paths behave identically from here on.
+  async function resumePaidPlayAfterSign(txBytes, pickFromUrl, ownerFromUrl){
+    // Primary source is the return URL (survives Phantom's new-tab returns);
+    // sessionStorage is only a fallback for same-tab flows.
+    var stored = null;
+    var pickNum = parseInt(pickFromUrl, 10);
+    if(!isNaN(pickNum) && pickNum >= 0 && pickNum <= 9){
+      stored = { picked: pickNum, owner: ownerFromUrl || wallet.pubkey };
+    } else {
+      stored = loadPendingPlay();
+    }
+    if(!stored){
+      setStatus('Your entry session expired before it could finish. If $OIL was taken, check your wallet activity before playing again.', 'warn');
+      return;
+    }
+    picked = stored.picked;
+    if(!wallet.pubkey && stored.owner) wallet.pubkey = stored.owner;
+    // Restore the connected UI in this (new) tab so the game is fully
+    // re-armed after the round — Play again must work without a refresh.
+    connectBtn.textContent = 'Connected'; connectBtn.disabled = true;
+    busy = true;
+    playPaidBtn.disabled = true;
+    playBtn.disabled = true;
+    tiles.forEach(function(t){ t.disabled = true; });
+    setStatus('Connected as <span class="addr">'+shortAddr(wallet.pubkey || stored.owner)+'</span><br/>Sending your entry…');
+    try{
+      var connection = new solanaWeb3.Connection(CFG.RPC, 'confirmed');
+      var deserialized = solanaWeb3.Transaction.from(txBytes);
+      var rawSig = await connection.sendRawTransaction(txBytes, { skipPreflight:false });
+
+      setStatus('Payment sent — waiting for confirmation on-chain…');
+      var ok = await confirmSignature(connection, rawSig, 30000);
+      if(!ok) throw new PayError('Payment sent but confirmation is taking longer than expected. Signature: '+rawSig+'. Do not pay again — check this signature before retrying.');
+
+      var draw = await drawAfter(rawSig, deserialized.signature);
+      clearPendingPlay();
+      stage.innerHTML = '';
+      runSweepThenReveal(draw, { paid:true, signature: rawSig });
+      // Re-check balance + Bot holding in the background so the paid button,
+      // multiplier note, and $OIL figure are all live again the moment the
+      // player taps Play again — no refresh needed. (Updates walletStatus
+      // only; doesn't touch the result card.)
+      if(wallet.pubkey) checkHolder(wallet.pubkey);
+    }catch(e){
+      busy = false;
+      playPaidBtn.disabled = false;
+      playBtn.disabled = false;
+      tiles.forEach(function(t){ t.disabled = false; });
+      var msg = (e instanceof PayError) ? e.userMessage
+        : 'Something went wrong sending the payment after returning from Phantom. No confirmed charge means nothing was taken — check your wallet activity before trying again.';
+      setStatus('Connected as <span class="addr">'+shortAddr(wallet.pubkey || stored.owner)+'</span><br/>'+msg, 'warn');
+      if(wallet.pubkey) checkHolder(wallet.pubkey);
+    }
+  }
+
+  playPaidBtn.addEventListener('click', async function(){
+    if(busy || picked === null) return;
+    if(!canPlayPaid()){ setStatus('Connect a wallet holding at least '+CFG.ENTRY_FEE+' $OIL to play for real.', 'warn'); return; }
+
+    busy = true;
+    playPaidBtn.disabled = true;
+    playBtn.disabled = true;
+    tiles.forEach(function(t){ t.disabled = true; });
+    stage.innerHTML = '';
+    clearStates();
+    setStatus('Building your entry — approve it in Phantom when it appears…');
+
+    try{
+      var provider = getProvider();
+      // No injected provider, but a mobile Phantom session already exists from
+      // Connect — use the deeplink sign flow instead of failing outright.
+      var useMobileDeeplink = !provider && window.PhantomMobile && PhantomMobile.isMobile() && PhantomMobile.hasSession();
+      if(!provider && !useMobileDeeplink) throw new PayError('Phantom isn’t reachable here — open this page in your own browser with the Phantom extension installed, or tap Connect again on mobile.');
+
+      var ownerPk = new solanaWeb3.PublicKey(wallet.pubkey);
+      var connection = new solanaWeb3.Connection(CFG.RPC, 'confirmed');
+
+      var tokAccts = await connection.getTokenAccountsByOwner(ownerPk, { mint: new solanaWeb3.PublicKey(CFG.OIL_MINT) });
+      if(!tokAccts.value.length) throw new PayError('No $OIL account found in this wallet — nothing to pay with.');
+      var sourcePubkey = tokAccts.value[0].pubkey;
+
+      var balInfo = await connection.getTokenAccountBalance(sourcePubkey);
+      var haveBase = Number(balInfo.value.amount);
+      var needBase = Math.round(CFG.ENTRY_FEE * Math.pow(10, CFG.DECIMALS));
+      if(haveBase < needBase){
+        throw new PayError('Not enough liquid $OIL to play — you need '+CFG.ENTRY_FEE+', this wallet has '+(haveBase/Math.pow(10,CFG.DECIMALS)).toFixed(2)+'.');
+      }
+
+      var destPubkey = new solanaWeb3.PublicKey(CFG.TREASURY_TOKEN_ACCOUNT);
+      var tx = new solanaWeb3.Transaction();
+      tx.add(
+        buildTransferIx(sourcePubkey, destPubkey, ownerPk, needBase),
+        buildMemoIx(ownerPk, 'FBNG|pick='+picked)
+      );
+      tx.feePayer = ownerPk;
+      var latest = await connection.getLatestBlockhash();
+      tx.recentBlockhash = latest.blockhash;
+
+      if(useMobileDeeplink){
+        // Page navigates away to the Phantom app here. CRITICAL: Phantom's
+        // browser opens the return in a brand-NEW tab (confirmed on-device —
+        // tab count increments every round-trip), so sessionStorage saved
+        // here is invisible on return. Everything needed to finish must
+        // travel in the return URL itself: the picked Bot (0–9) and the
+        // payer address — both public, nothing sensitive.
+        savePendingPlay({ picked: picked, owner: wallet.pubkey }); // kept as same-tab fallback
+        setStatus('Opening Phantom to approve your entry…');
+        var unsignedBytes = tx.serialize({ requireAllSignatures:false, verifySignatures:false });
+        var returnUrl = window.location.origin + window.location.pathname +
+          '?pick=' + picked + '&owner=' + encodeURIComponent(wallet.pubkey);
+        PhantomMobile.signTransaction(unsignedBytes, returnUrl, 'pickabot_sign');
+        return;
+      }
+
+      // Phantom SIGNS only — we submit it ourselves, through the right network.
+      var signed = await provider.signTransaction(tx);
+
+      setStatus('Sending your entry…');
+      var rawSig = await connection.sendRawTransaction(signed.serialize(), { skipPreflight:false });
+
+      setStatus('Payment sent — waiting for confirmation on-chain…');
+      var ok = await confirmSignature(connection, rawSig, 30000);
+      if(!ok) throw new PayError('Payment sent but confirmation is taking longer than expected. Signature: '+rawSig+'. Do not pay again — check this signature before retrying.');
+
+      var draw = await drawAfter(rawSig, signed.signature);
+      stage.innerHTML = '';
+      runSweepThenReveal(draw, { paid:true, signature: rawSig });
+
+    }catch(e){
+      busy = false;
+      playPaidBtn.disabled = false;
+      playBtn.disabled = false;
+      tiles.forEach(function(t){ t.disabled = false; });
+      var msg = (e instanceof PayError) ? e.userMessage
+        : (e && /reject/i.test(e.message||'')) ? 'Payment cancelled in Phantom.'
+        : 'Something went wrong sending the payment. No confirmed charge means nothing was taken — safe to try again.';
+      setStatus('Connected as <span class="addr">'+shortAddr(wallet.pubkey)+'</span><br/>'+msg, 'warn');
+    }
+  });
+})();
+</script>
+<script id="fb-coach" data-fb-goal="Pick 1 of 10 and find the matching Bot." data-fb-touch="Tap a Bot" data-fb-keys="Click a Bot">
+/* FinnBots COACH LAYER — the first 30 seconds (brief 1, 2026-10-27).
+   Founder: "First 30 seconds of each of the six: starts instantly, the goal is obvious without reading, the first
+   death/win feels good." Before this, a first-time player landed on a 115-193 word How to play card and had to read
+   it and tap Got it before anything moved — on a phone, the whole screen.
+
+   What it does, once, at load:
+   1. If the game's boot opened its rules card (#rulesOverlay.show), close it the way a player's Got it does — by
+      clicking #rulesClose, so the game's own close handler runs — and drop the focus that handler puts on the info
+      button (a Space press would otherwise open the card again). The full rules stay one tap away behind the info
+      button; nothing in them is removed.
+   2. Show TWO lines over the live game: the goal and the one control, from the site's own data
+      (website/data/games.json `short` + `controls`, written onto this tag by apply-coach.js). It never blocks a tap
+      (pointer-events: none) and it fades on the first touch, click or key, or after 9 seconds.
+   It does nothing on a wallet return (?phantom_action= or ?src=browse): that path belongs to the wallet layer.
+   SOURCE OF TRUTH: this file + coach-layer.css, injected by apply-coach.js, pinned by verify-game.js, driven by
+   verify-coach.js. Never hand-edit a game's copy. */
+(function () {
+  'use strict';
+  var tag = document.getElementById('fb-coach');   /* its own tag carries the words; no tag, no words — never a reason to stop */
+  var at = function (k) { return (tag && tag.getAttribute(k)) || ''; };
+  var q = '';
+  try { q = window.location.search || ''; } catch (e) { /* no location: carry on */ }
+  if (/[?&](phantom_action=|src=browse\b)/.test(q)) return;
+  var goal = at('data-fb-goal'), touch = at('data-fb-touch'), keys = at('data-fb-keys');
+
+  /* 1. the rules card the boot opened: closed as Got it would close it */
+  var rules = document.getElementById('rulesOverlay');
+  function closeBootRules() {
+    if (!rules || !rules.classList.contains('show')) return false;
+    var btn = document.getElementById('rulesClose');
+    if (btn && btn.click) btn.click();
+    if (rules.classList.contains('show')) rules.classList.remove('show');
+    var info = document.getElementById('infoBtn');
+    if (info && document.activeElement === info && info.blur) info.blur();
+    return true;
+  }
+  closeBootRules();
+  /* a game that opens the card a moment after boot (a deferred init) is closed too — within the first 1.5 s only,
+     so a player who opens it on purpose later is never overruled */
+  var watch = null;
+  if (rules && window.MutationObserver) {
+    watch = new MutationObserver(function () { closeBootRules(); });
+    watch.observe(rules, { attributes: true, attributeFilter: ['class'] });
+    setTimeout(function () { if (watch) { watch.disconnect(); watch = null; } }, 1500);
+  }
+
+  /* 2. the goal + the one control, over the live game */
+  if (!goal) return;
+  var coarse = false;
+  try { coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches; } catch (e) { /* desktop */ }
+  var hint = (coarse ? touch : keys) || touch || keys;
+  var box = document.createElement('div');
+  box.className = 'fb-coach';
+  box.setAttribute('role', 'status');
+  box.setAttribute('aria-live', 'polite');
+  var g = document.createElement('b'); g.className = 'fb-coach-goal'; g.textContent = goal; box.appendChild(g);
+  if (hint) { var h = document.createElement('span'); h.className = 'fb-coach-how'; h.textContent = hint; box.appendChild(h); }
+  document.body.appendChild(box);
+  var gone = false;
+  function hide() {
+    if (gone) return; gone = true;
+    box.classList.add('fb-coach-out');
+    setTimeout(function () { if (box.parentNode) box.parentNode.removeChild(box); }, 400);
+    ['pointerdown', 'touchstart', 'keydown'].forEach(function (ev) { document.removeEventListener(ev, hide, true); });
+  }
+  ['pointerdown', 'touchstart', 'keydown'].forEach(function (ev) { document.addEventListener(ev, hide, true); });
+  setTimeout(hide, 9000);
+})();
+</script>
+<script defer id="fb-beacon" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "b11bf18cfe07453484c01ca2d417e772"}'></script>
+<script id="fb-analytics">
+/* ==========================================================================
+   FinnBots ANALYTICS LAYER — how the games are PLAYED, counted, never who plays.
+   Founder, 2026-10-19: approved the four-phase analytics plan ("FinnBots
+   Analytics Plan" doc) — "Also keep this all free", and: "Ensure that this
+   reporting layer does not affect anything else cloud flare supports for
+   finnbots or cost me anything the data doesnt have to be realtime".
+
+   SOURCE OF TRUTH. Injected by apply-analytics.js as <script id="fb-analytics">
+   just before </body>, beside the Cloudflare beacon tag (page views come from
+   the beacon, which is not a Worker and spends nothing of ours; this layer adds
+   what the beacon cannot see). Entirely passive:
+
+     - it NEVER touches the engine, the wallet layer or a wallet
+     - it watches the run-over card (#overOverlay) and the paid panel
+       (#paidOverlay) — the same elements the stickiness layer reads
+     - no cookie, no ID: what it keeps on the device is a handful of COUNTS
+       for this game, and the date it last sent them
+
+   AT MOST ONE REQUEST PER DEVICE PER DAY. Every request to the events Worker
+   spends the account's FREE Workers allowance (100,000 a day), and that
+   allowance is SHARED with the RPC Worker every paid entry needs. Real time is
+   not wanted, so counts pile up on the device and leave once a day, on the
+   first page-hide of a new UTC day (or the first one ever). What is sent: the
+   device class (phone / tablet / laptop) and, since the last send, how many
+   visits there were, how many touched the game, how many runs ended, how many
+   times the paid panel opened, and how many visits finished a run / opened the
+   paid panel. The game is NOT in the payload — the Worker reads it from the
+   Origin header, so a payload cannot claim to be another game. Nothing is sent
+   off the live domain (local playtests and gates never send). If the browser
+   will not store anything (private mode), it sends at most once per page.
+
+   WHERE A VISIT CAME FROM (v3, 2026-11-16; Founder: "build the per-channel tracking"). Our posts' links carry a short
+   tag (?from=x, ?from=discord); otherwise the referring SITE'S NAME only (t.co -> x, google.* -> search, our own pages
+   -> site, anything else -> its registrable name, e.g. ref:example.com), or "direct". Never a full address, never a
+   path, never anything about the person. Each channel is a handful of counts (visits, touched, runs, finished) that
+   ride in the SAME once-a-day request; a visit is counted even if the game was never touched (that is the leak we
+   need to see). The ?from= tag is removed from the address bar at once, so a player who shares the page does not
+   pass our tag on.
+
+   v4 (2026-11-17; Founder: "build all three"):
+     - PER-POST TAGS: ?from=x-w49a (a channel tag + a post id of 2-10 a-z/0-9) is kept whole, so the report can say
+       which POST brought players. Anything else after the dash is tag-other.
+     - PLAYED AGAIN: a visit that finished one run and went on to another (t). Each channel row gains it as a 5th count.
+     - COMING BACK: the device keeps ONE date per game - the day it first played here - and never sends it. Each visit
+       that touches the game is counted in one of three piles (u): [first day, back within 7 days, back after 7 days].
+       A device that already played before v4 (it has a last-send date) counts from that date, so a regular is not
+       mistaken for a newcomer on the day this ships. Still no id: the date stays on the device, only the pile leaves.
+
+   v5 (2026-11-18; Founder: "Yes, clean it"): A VISIT IS A PERSON. Automated page loads ran this layer too: 19 of the
+   counter's first 24 "game visits" (16-17 Nov) were on the three games the crawler spike hit, came in direct and
+   never touched the game. Now nothing about a page is banked or sent until it has seen ONE real input from a person:
+   a mouse move, a touch, a key or a wheel (isTrusted - a script's synthetic event does not count). A person who
+   looks and leaves still moves a pointer or a thumb, so the leak we need to see stays visible; a renderer that
+   loads and closes leaves no trace. Cloudflare's page views remain the "every load" number.
+   ========================================================================== */
+(function(){
+  try{
+    var END = 'https://finnbots-events.mart-kin1000.workers.dev/e';
+    var host = String(location.hostname || '');
+    if(!/\.finnstergram\.com$/.test(host)) return;           // live games only
+    if(!navigator.sendBeacon) return;
+    var $ = function(id){ return document.getElementById(id); };
+    var KEY = 'fb:' + host.split('.')[0] + ':counts';
+    var ZERO = function(){ return { n:0, s:0, r:0, p:0, f:0, q:0, t:0, u:[0, 0, 0] }; };
+    var FIRST = 'fb:' + host.split('.')[0] + ':first';                    // the day this device first played here (never sent)
+    var day = function(){ return new Date().toISOString().slice(0, 10); };
+
+    var dev = (function(){
+      var coarse = false;
+      try{ coarse = matchMedia('(pointer: coarse)').matches; }catch(e){}
+      if(!coarse) return 'laptop';
+      var s = (typeof screen !== 'undefined') ? Math.min(screen.width || 0, screen.height || 0) : 0;
+      return (s && s < 600) ? 'phone' : 'tablet';
+    })();
+
+    /* where this visit came from (see the header): a tag on our own links, else the referring site's name */
+    var TAGS = { x:1, discord:1, site:1, parents:1, holders:1, email:1, qr:1 };
+    var chan = (function(){
+      var q = String(location.search || ''), m = /[?&]from=([^&#]*)/.exec(q);
+      if(/[?&](phantom_action=|src=browse\b)/.test(q)) return 'wallet';            // a wallet return is the same visit coming back
+      if(m){ var t = String(m[1]).toLowerCase();
+        try{ if(window.history && history.replaceState){                         // our tag never travels on in a share
+          var rest = q.replace(/([?&])from=[^&#]*&?/, '$1').replace(/[?&]$/, '');
+          history.replaceState(history.state, '', (location.pathname || '/') + rest + (location.hash || '')); } }catch(e){}
+        if(TAGS[t]) return t;
+        var pt = /^([a-z]+)-([a-z0-9]{2,10})$/.exec(t);                          // a per-post tag: x-w49a
+        return (pt && TAGS[pt[1]]) ? t : 'tag-other'; }
+      var h = (/^https?:\/\/([^\/:?#]+)/i.exec(String(document.referrer || '')) || [])[1];
+      if(!h) return 'direct';
+      h = h.toLowerCase().replace(/^www\./, '');
+      if(/(^|\.)finnstergram\.com$/.test(h)) return 'site';
+      if(/^(t\.co|x\.com|twitter\.com|mobile\.twitter\.com|m\.twitter\.com)$/.test(h)) return 'x';
+      if(/(^|\.)(discord\.com|discordapp\.com|discord\.gg)$/.test(h)) return 'discord';
+      if(/(^|\.)(google\.[a-z.]+|bing\.com|duckduckgo\.com|yahoo\.[a-z.]+|ecosia\.org|search\.brave\.com|yandex\.[a-z.]+|baidu\.com)$/.test(h)) return 'search';
+      var p = h.split('.').filter(Boolean), k = (p.length > 2 && /^(co|com|org|net|ac|gov|edu)$/.test(p[p.length-2]) && p[p.length-1].length === 2) ? 3 : 2;
+      var name = p.slice(-k).join('.');
+      return /^[a-z0-9.-]{3,40}$/.test(name) ? 'ref:' + name : 'ref:other';
+    })();
+
+    /* this visit, as it happens */
+    var v = { s:0, r:0, p:0, f:0, q:0, t:0 }, banked = { s:0, r:0, p:0, f:0, q:0, t:0 }, visitBanked = false, chanBanked = false, backBanked = false, sentThisPage = false;
+
+    /* 0. a PERSON is here (v5): any real input at all, chrome or game. Until then nothing is banked or sent. */
+    var human = false;
+    var person = function(e){ if(!e || e.isTrusted !== false) human = true; };
+    ['pointermove', 'pointerdown', 'touchstart', 'keydown', 'wheel'].forEach(function(t){
+      addEventListener(t, person, { capture:true, passive:true }); });
+
+    /* 1. played: the first input that is not on the page's own chrome */
+    var chrome = function(t){
+      return !!(t && t.closest && t.closest('button, a, input, select, textarea, summary, .overlay, .sheet, .topbar'));
+    };
+    var dialog = function(){ return !!document.querySelector('.overlay.show, .sheet.show'); };
+    addEventListener('keydown', function(){ if(!v.s && !dialog()) v.s = 1; }, true);
+    addEventListener('pointerdown', function(e){ if(!v.s && !chrome(e && e.target)) v.s = 1; }, true);
+
+    /* 2. a run ended, 3. the paid panel opened — each a rising edge of .show */
+    function edge(el, fn){
+      if(!el) return;
+      var on = el.classList.contains('show');
+      new MutationObserver(function(){
+        var now = el.classList.contains('show');
+        if(now && !on) fn();
+        on = now;
+      }).observe(el, { attributes:true, attributeFilter:['class'] });
+    }
+    edge($('overOverlay'), function(){ v.r++; v.s = 1; v.f = 1; if(v.r >= 2) v.t = 1; });
+    edge($('paidOverlay'), function(){ v.p++; v.q = 1; });
+
+    /* the device's pile of unsent counts */
+    var store = null;
+    function load(){
+      try{ var o = JSON.parse(localStorage.getItem(KEY) || 'null');
+           if(o && o.c && typeof o.c.r === 'number'){ if(!o.ch || typeof o.ch !== 'object') o.ch = {};
+             if(typeof o.c.t !== 'number') o.c.t = 0; if(!Array.isArray(o.c.u) || o.c.u.length !== 3) o.c.u = [0, 0, 0]; return o; } }catch(e){}
+      return { sent:'', c:ZERO(), ch:{} };
+    }
+    function save(o){ try{ localStorage.setItem(KEY, JSON.stringify(o)); return localStorage.getItem(KEY) !== null; }catch(e){ return false; } }
+
+    /* which pile a touched visit goes in: 0 = the device's first day here, 1 = back within 7 days, 2 = back after 7.
+       null = storage will not keep a date (private mode): counted nowhere rather than guessed. */
+    function backPile(prevSent){
+      var t = day(), f = null;
+      try{ f = localStorage.getItem(FIRST); }catch(e){ return null; }
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(f || '')){
+        f = (/^\d{4}-\d{2}-\d{2}$/.test(prevSent || '') && prevSent < t) ? prevSent : t;   // played before v4: count from then
+        try{ localStorage.setItem(FIRST, f); if(localStorage.getItem(FIRST) !== f) return null; }catch(e){ return null; }
+      }
+      var gap = Math.round((Date.parse(t) - Date.parse(f)) / 864e5);
+      return gap <= 0 ? 0 : gap <= 7 ? 1 : 2;
+    }
+
+    /* bank what this visit added since the last bank, then send the pile if today has not had a send */
+    function flush(){
+      if(!human) return;                                         // v5: no person seen - a page load is not a visit
+      var d = { s:v.s - banked.s, r:v.r - banked.r, p:v.p - banked.p, f:v.f - banked.f, q:v.q - banked.q, t:v.t - banked.t };
+      var any = d.s || d.r || d.p;
+      store = load();
+      /* the channel pile: EVERY visit counts once (touched or not), then what it did */
+      var key = chan;
+      if(!store.ch[key] && Object.keys(store.ch).length >= 6) key = 'other';   // at most 6 channels in one day's request
+      var cc = store.ch[key] || (store.ch[key] = [0, 0, 0, 0, 0]);            // [visits, touched, runs, finished, played again]
+      if(cc.length < 5) cc.push(0);
+      if(!chanBanked){ cc[0]++; chanBanked = true; }
+      if(any){
+        if(!visitBanked){ store.c.n++; visitBanked = true; }
+        store.c.s += d.s; store.c.r += d.r; store.c.p += d.p; store.c.f += d.f; store.c.q += d.q; store.c.t += d.t;
+        cc[1] += d.s; cc[2] += d.r; cc[3] += d.f; cc[4] += d.t;
+        if(v.s && !backBanked){ var bp = backPile(store.sent); if(bp !== null) store.c.u[bp]++; backBanked = true; }
+        banked = { s:v.s, r:v.r, p:v.p, f:v.f, q:v.q, t:v.t };
+      }
+      var kept = save(store);
+      var c = store.c, visits = 0;
+      for(var ck in store.ch) visits += store.ch[ck][0];
+      if(!(c.s || c.r || c.p) && !visits) return;
+      if(kept ? store.sent === day() : sentThisPage) return;   // already sent today (or, unstored, this page)
+      var body = JSON.stringify({ v:4, d:dev, n:c.n, s:c.s, r:c.r, p:c.p, f:c.f, q:c.q, t:c.t, u:c.u, ch:store.ch });
+      if(navigator.sendBeacon(END, body)){
+        sentThisPage = true;
+        store.sent = day(); store.c = ZERO(); store.ch = {}; save(store);
+      }
+    }
+    document.addEventListener('visibilitychange', function(){
+      if(document.visibilityState === 'hidden') flush();
+    });
+    addEventListener('pagehide', flush);
+    window.FB_ANALYTICS_STATE = function(){ return { dev:dev, visit:{ s:v.s, r:v.r, p:v.p, f:v.f, q:v.q, t:v.t }, store:load() }; };
+  }catch(e){ /* analytics must never break a game */ }
+})();
+</script>
+</body>
+</html>
